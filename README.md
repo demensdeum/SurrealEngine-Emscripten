@@ -1,3 +1,8 @@
+# Emscripten Build
+
+Right now ends with error:  
+Unable to create SDL Window: Vulkan support is either not configured in SDL or not available in current SDL video driver (emscripten) or platform  
+  
 # Surreal Engine
 
 The goal of this project is to reimplement enough of the original Unreal Engine to make the Unreal Tournament (UT99) maps playable.
