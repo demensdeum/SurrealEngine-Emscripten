@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.11)
 project(zwidget)
 
+if (!EMSCRIPTEN)
 if (UNIX AND NOT APPLE)
 	include(FindPkgConfig)
 	pkg_check_modules(DBUS REQUIRED dbus-1)
@@ -9,6 +10,7 @@ if (UNIX AND NOT APPLE)
 #		wayland-cursor>=1.20
 #		xkbcommon>=0.5.0
 #	)
+endif()
 endif()
 
 set(ZWIDGET_SOURCES

@@ -480,6 +480,14 @@ set(SURREALENGINE_SOURCES
 	SurrealEngine/MainGame.cpp
 )
 
+
+add_definitions(-w)
+
+if(EMSCRIPTEN)
+add_compile_definitions(NO_SSE)
+set(CMAKE_CXX_FLAGS " -s EXCEPTION_DEBUG -fexceptions --preload-file UnrealGold/ --preload-file SurrealEngine.pk3 --bind --use-preload-plugins -Wall -Wextra -Werror=return-type -s USE_SDL=2 -s USE_SDL_TTF=2 -s USE_SDL_IMAGE=2 -s USE_LIBPNG=1 -s ASSERTIONS=1 -s DISABLE_EXCEPTION_CATCHING=0 -s SDL2_IMAGE_FORMATS='[\"png\"]' -O3 --no-heap-copy -s ALLOW_MEMORY_GROWTH=1 -s EXIT_RUNTIME=1")
+endif()
+
 source_group("SurrealEngine" REGULAR_EXPRESSION "${CMAKE_CURRENT_SOURCE_DIR}/SurrealEngine/.+")
 source_group("SurrealEngine\\Audio" REGULAR_EXPRESSION "${CMAKE_CURRENT_SOURCE_DIR}/SurrealEngine/Audio/.+")
 source_group("SurrealEngine\\Math" REGULAR_EXPRESSION "${CMAKE_CURRENT_SOURCE_DIR}/SurrealEngine/Math/.+")
@@ -543,10 +551,10 @@ elseif(APPLE)
 	add_link_options(-pthread)
 else()
 	set(SURREALCOMMON_SOURCES ${SURREALCOMMON_SOURCES} ${SURREALCOMMON_SDL2_SOURCES})
-	set(SURREALCOMMON_LIBS ${SURREALCOMMON_LIBS} ${SURREALCOMMON_UNIX_LIBS} ${SDL2_LIBRARIES} ${CMAKE_DL_LIBS} -lSDL2 -ldl -lasound)
+	set(SURREALCOMMON_LIBS ${SURREALCOMMON_LIBS} ${SURREALCOMMON_UNIX_LIBS} ${SDL2_LIBRARIES} ${CMAKE_DL_LIBS} -lSDL2 -ldl)
 	set(THIRDPARTY_SOURCES ${THIRDPARTY_SOURCES} ${THIRDPARTY_UNIX_SOURCES})
 	add_definitions(-DUNIX -D_UNIX)
-	add_link_options(-pthread)
+	#add_link_options(-pthread)
 endif()
 
 if(MSVC)

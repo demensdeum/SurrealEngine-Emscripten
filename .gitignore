@@ -3,3 +3,13 @@
 /build
 *.user
 .vscode
+/emscripten-build/CMake*
+/emscripten-build/SurrealEngine.data
+/emscripten-build/SurrealEngine.js
+/emscripten-build/SurrealEngine.pk3
+/emscripten-build/SurrealEngine.wasm
+/emscripten-build/Makefile
+/emscripten-build/Thirdparty/
+/emscripten-build/UnrealGold/
+/emscripten-build/cmake_install.cmake
+/emscripten-build/*.a
