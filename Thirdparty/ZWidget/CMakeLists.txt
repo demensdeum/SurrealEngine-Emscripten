@@ -81,31 +81,9 @@ set(ZWIDGET_INCLUDES
 	include/zwidget/systemdialogs/save_file_dialog.h
 )
 
-set(ZWIDGET_WIN32_SOURCES
-	src/window/win32/win32displaywindow.cpp
-	src/window/win32/win32displaywindow.h
-)
-
-set(ZWIDGET_COCOA_SOURCES
-)
-
 set(ZWIDGET_SDL2_SOURCES
 	src/window/sdl2/sdl2displaywindow.cpp
 	src/window/sdl2/sdl2displaywindow.h
-)
-
-set(ZWIDGET_X11_SOURCES
-	src/window/x11/x11displaywindow.cpp
-	src/window/x11/x11displaywindow.h
-)
-
-set(ZWIDGET_WAYLAND_SOURCES
-	src/window/wayland/waylanddisplaywindow.cpp
-	src/window/wayland/waylanddisplaywindow.h
-	src/window/wayland/xdg-output-unstable.c
-	src/window/wayland/xdg-output-unstable.h
-	src/window/wayland/xdg-shell.c
-	src/window/wayland/xdg-shell.h
 )
 
 source_group("src" REGULAR_EXPRESSION "${CMAKE_CURRENT_SOURCE_DIR}/src/.+")

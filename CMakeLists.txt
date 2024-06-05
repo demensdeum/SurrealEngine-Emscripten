@@ -480,14 +480,6 @@ set(SURREALENGINE_SOURCES
 	SurrealEngine/MainGame.cpp
 )
 
-set(SURREALEDITOR_SOURCES
-	SurrealEngine/MainEditor.cpp
-)
-
-set(SURREALDEBUGGER_SOURCES
-	SurrealEngine/MainDebugger.cpp
-)
-
 source_group("SurrealEngine" REGULAR_EXPRESSION "${CMAKE_CURRENT_SOURCE_DIR}/SurrealEngine/.+")
 source_group("SurrealEngine\\Audio" REGULAR_EXPRESSION "${CMAKE_CURRENT_SOURCE_DIR}/SurrealEngine/Audio/.+")
 source_group("SurrealEngine\\Math" REGULAR_EXPRESSION "${CMAKE_CURRENT_SOURCE_DIR}/SurrealEngine/Math/.+")
@@ -573,14 +565,6 @@ add_executable(SurrealEngine WIN32 MACOSX_BUNDLE ${SURREALENGINE_SOURCES})
 target_link_libraries(SurrealEngine SurrealCommon ${SURREALCOMMON_LIBS})
 set_target_properties(SurrealEngine PROPERTIES CXX_STANDARD 17)
 
-add_executable(SurrealEditor WIN32 MACOSX_BUNDLE ${SURREALEDITOR_SOURCES})
-target_link_libraries(SurrealEditor SurrealCommon ${SURREALCOMMON_LIBS})
-set_target_properties(SurrealEditor PROPERTIES CXX_STANDARD 17)
-
-add_executable(SurrealDebugger ${SURREALDEBUGGER_SOURCES})
-target_link_libraries(SurrealDebugger SurrealCommon ${SURREALCOMMON_LIBS})
-set_target_properties(SurrealDebugger PROPERTIES CXX_STANDARD 17)
-
 if(WIN32)
 add_custom_command(TARGET SurrealEngine POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:OpenAL::OpenAL>" $<TARGET_FILE_DIR:SurrealEngine>)
 endif()
@@ -588,5 +572,3 @@ endif()
 add_custom_command(TARGET SurrealEngine POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/SurrealEngine.pk3" $<TARGET_FILE_DIR:SurrealEngine>)
 
 install(TARGETS SurrealEngine RUNTIME DESTINATION bin BUNDLE DESTINATION app)
-install(TARGETS SurrealEditor RUNTIME DESTINATION bin BUNDLE DESTINATION app)
-install(TARGETS SurrealDebugger RUNTIME DESTINATION bin)
