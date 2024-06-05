@@ -7,6 +7,7 @@
 #include "CommandLine.h"
 #include "UI/Launcher/LauncherWindow.h"
 #include <filesystem>
+#include <iostream>
 
 GameLaunchInfo GameFolderSelection::GetLaunchInfo()
 {
@@ -47,9 +48,13 @@ GameLaunchInfo GameFolderSelection::GetLaunchInfo()
 		Exception::Throw("Unable to find a game folder");
 	}
 
-	int selectedGame = LauncherWindow::ExecModal(foundGames);
-	if (selectedGame < 0)
-		return {};
+	// int selectedGame = LauncherWindow::ExecModal(foundGames);
+	// if (selectedGame < 0)
+	// 	return {};
+
+	int selectedGame = 0;
+
+	std::cout << "Selected game: " << selectedGame << std::endl;
 
 	GameLaunchInfo info = foundGames[selectedGame];
 
