@@ -11,6 +11,7 @@
 #include "Collision/TraceAABBModel.h"
 #include "Collision/TraceRayModel.h"
 #include "Collision/OverlapCylinderLevel.h"
+#include <iostream>
 
 static std::string tickEventName = "Tick";
 
@@ -73,7 +74,9 @@ UActor* UActor::Spawn(UClass* SpawnClass, UActor* SpawnOwner, NameString SpawnTa
 	}
 
 	// To do: package needs to be grabbed from outer, or the "transient package" if it is None, a virtual package for runtime objects
-	UActor* actor = UObject::Cast<UActor>(engine->packages->GetPackage("Engine")->NewObject("", UObject::Cast<UClass>(SpawnClass), ObjectFlags::Transient, true));
+std::cout << "GP20" << std::endl;
+
+	UActor* actor = UObject::Cast<UActor>(engine->packages->GetPackage("Engine", 953)->NewObject("", UObject::Cast<UClass>(SpawnClass), ObjectFlags::Transient, true));
 
 	actor->Outer() = XLevel()->Outer();
 	actor->XLevel() = XLevel();

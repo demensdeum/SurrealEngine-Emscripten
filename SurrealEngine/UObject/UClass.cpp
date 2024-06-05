@@ -486,8 +486,10 @@ void UClass::Load(ObjectStream* stream)
 							{
 								NameString packageName = value.substr(0, pos);
 								NameString className = value.substr(pos + 1);
-								Package* pkg = packages->GetPackage(packageName);
-								*static_cast<UObject**>(ptr) = pkg->GetUObject("Class", className);
+								if (packages->PackageExists(packageName, 954)) {
+									Package* pkg = packages->GetPackage(packageName, 954);
+									*static_cast<UObject**>(ptr) = pkg->GetUObject("Class", className);
+								}
 							}
 						}
 						catch (...)
@@ -525,7 +527,7 @@ void UClass::Load(ObjectStream* stream)
 									{
 										NameString packageName = membervalue.substr(0, pos);
 										NameString className = membervalue.substr(pos + 1);
-										Package* pkg = packages->GetPackage(packageName);
+										Package* pkg = packages->GetPackage(packageName, 955);
 										*static_cast<UObject**>(memberptr) = pkg->GetUObject("Class", className);
 									}
 								}

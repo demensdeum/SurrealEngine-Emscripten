@@ -68,6 +68,8 @@ GameLaunchInfo GameFolderSelection::GetLaunchInfo()
 
 GameLaunchInfo GameFolderSelection::ExamineFolder(const std::string& path)
 {
+	std::cout << path << std::endl;
+	
 	GameLaunchInfo info;
 
 	if (path.empty())

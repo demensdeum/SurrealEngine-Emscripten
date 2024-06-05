@@ -9,6 +9,8 @@
 #include <Windows.h>
 #include <DbgHelp.h>
 
+#include <iostream>
+
 struct InitDbgHelp
 {
 	InitDbgHelp()
@@ -138,6 +140,8 @@ int Exception::CaptureStackFrames(std::ostringstream& sstream, int maxframes)
 
 void Exception::Throw(const std::string& text)
 {
+	std::cout << "AAAAAAAAA EXCEPTION!!! " << text << std::endl;
+
 	std::ostringstream sstream;
 
 	sstream << "Exception: " << text << std::endl;

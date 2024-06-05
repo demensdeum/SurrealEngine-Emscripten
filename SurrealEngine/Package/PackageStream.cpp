@@ -130,6 +130,7 @@ std::string PackageStream::ReadString()
 
 Package* PackageStream::GetPackage() const
 {
+std::cout << "GP22" << std::endl;	
 	return package;
 }
 

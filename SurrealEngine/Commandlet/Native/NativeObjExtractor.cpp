@@ -16,8 +16,8 @@ std::string NativeObjExtractor::Run(PackageManager* packages)
 	{
 		if (pkgname == "Editor")
 			continue;
-
-		Package* package = packages->GetPackage(pkgname.ToString());
+std::cout << "GP8" << std::endl;
+		Package* package = packages->GetPackage(pkgname.ToString(), 994);
 
 		JsonValue jsonPackage = CreatePackageJson(package);
 		if (jsonPackage.properties().size() > 0)

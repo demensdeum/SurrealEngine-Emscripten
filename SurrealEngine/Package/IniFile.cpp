@@ -4,6 +4,8 @@
 #include "File.h"
 #include "MurmurHash3/MurmurHash3.h"
 #include <algorithm>
+#include <filesystem>
+namespace fs = std::filesystem;
 
 static uint32_t HashIniString(const std::string& str)
 {

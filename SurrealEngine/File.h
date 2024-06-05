@@ -2,6 +2,9 @@
 
 #include <memory>
 #include <string>
+#include <iostream>	
+#include <filesystem>
+namespace fs = std::filesystem;
 
 enum class SeekPoint
 {
@@ -14,13 +17,18 @@ class File
 {
 public:
 	static std::shared_ptr<File> create_always(const std::string &filename);
-	static std::shared_ptr<File> open_existing(const std::string &filename);
+	static std::shared_ptr<File> open_existing(const std::string &filename, int debug_index);
 
 	static std::shared_ptr<File> try_open_existing(const std::string& filename)
 	{
+    	if (!std::filesystem::exists(filename))
+    	{
+			std::cout << "Tried to access non existant: " << filename << std::endl;
+			return {};
+		}		
 		try
 		{
-			return open_existing(filename);
+			return open_existing(filename, 14);
 		}
 		catch (...)
 		{
@@ -30,7 +38,7 @@ public:
 
 	static void write_all_bytes(const std::string& filename, const void* data, size_t size);
 	static void write_all_text(const std::string& filename, const std::string& text);
-	static std::vector<uint8_t> read_all_bytes(const std::string& filename);
+	static std::vector<uint8_t> read_all_bytes(const std::string& filename, int debug_index);
 	static std::string read_all_text(const std::string& filename);
 	static std::vector<std::string> read_all_lines(const std::string& filename);
 

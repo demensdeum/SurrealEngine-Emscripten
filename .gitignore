@@ -13,3 +13,4 @@
 /emscripten-build/UnrealGold/
 /emscripten-build/cmake_install.cmake
 /emscripten-build/*.a
+/emscripten-build/

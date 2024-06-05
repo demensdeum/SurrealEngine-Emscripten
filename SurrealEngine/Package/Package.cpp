@@ -229,8 +229,10 @@ void Package::LoadExportObject(int index)
 	else
 	{
 		UClass* objbase = UObject::Cast<UClass>(GetUObject(entry->ObjBase));
-		if (!objbase && objname != "Object")
-			objbase = UObject::Cast<UClass>(Packages->GetPackage("Core")->GetUObject("Class", "Object"));
+		if (!objbase && objname != "Object") {
+std::cout << "GP26" << std::endl;			
+			objbase = UObject::Cast<UClass>(Packages->GetPackage("Core", 993)->GetUObject("Class", "Object"));
+		}
 		auto obj = std::make_unique<UClass>(objname, objbase, ExportTable[index].ObjFlags);
 		Objects[index] = std::move(obj);
 		Objects[index]->DelayLoad.reset(new ObjectDelayLoad(this, index, objname, objbase));
@@ -275,13 +277,16 @@ UObject* Package::GetUObject(int objref)
 		NameString className = GetName(entry->ClassName);
 		// NameString classPackage = GetName(entry->ClassPackage);
 
-		UObject* obj = Packages->GetPackage(packageName)->GetUObject(className, objectName, groupName);
+		UObject* obj = nullptr;
+		if (Packages->PackageExists(packageName, 992)) {
+			obj = Packages->GetPackage(packageName, 992)->GetUObject(className, objectName, groupName);
+		}
 
 		// What a garbage engine!
 		if (!obj && packageName == "UnrealI")
-			obj = Packages->GetPackage("UnrealShare")->GetUObject(className, objectName, groupName);
+			obj = Packages->GetPackage("UnrealShare", 991)->GetUObject(className, objectName, groupName);
 		else if (!obj && packageName == "UnrealShare")
-			obj = Packages->GetPackage("UnrealI")->GetUObject(className, objectName, groupName);
+			obj = Packages->GetPackage("UnrealI", 990)->GetUObject(className, objectName, groupName);
 
 		return obj;
 	}

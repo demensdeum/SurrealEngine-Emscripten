@@ -140,8 +140,8 @@ void ExportCommandlet::ExportScripts(DebuggerApp* console, std::vector<std::stri
 	{
 		if (pkgname == "Editor")
 			continue;
-
-		Package* package = engine->packages->GetPackage(pkgname);
+		std::cout << "GP5" << std::endl;
+		Package* package = engine->packages->GetPackage(pkgname, 997);
 		std::vector<UClass*> classes = package->GetAllObjects<UClass>();
 		if (!classes.empty())
 			packageObjects.push_back(PackageNamePair(package, pkgname));
@@ -206,8 +206,8 @@ void ExportCommandlet::ExportTextures(DebuggerApp* console, std::vector<std::str
 	{
 		if (pkgname == "Editor")
 			continue;
-
-		Package* package = engine->packages->GetPackage(pkgname);
+		std::cout << "GP6" << std::endl;
+		Package* package = engine->packages->GetPackage(pkgname, 996);
 		std::vector<UTexture*> objects = package->GetAllObjects<UTexture>();
 		if (!objects.empty())
 			packageObjects.push_back(PackageNamePair(package, pkgname));

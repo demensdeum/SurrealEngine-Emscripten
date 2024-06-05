@@ -3,14 +3,27 @@
 #include "File.h"
 #include <miniz.h>
 #include "Exception.h"
+#include <iostream>
 
 static mz_zip_archive widgetResources;
 
 void InitWidgetResources()
 {
-	mz_bool result = mz_zip_reader_init_file(&widgetResources, FilePath::combine(OS::executable_path(), "SurrealEngine.pk3").c_str(), 0);
-	if (!result)
+	#ifdef EMSCRIPTEN
+		auto path = std::string("SurrealEngine.pk3");
+	#else
+		auto executablePath = OS::executable_path();
+		std::cout << "executablePath: " << executablePath << std::endl;	
+		auto path = FilePath::combine(OS::executable_path(), "SurrealEngine.pk3");
+	#endif
+
+	std::cout << "path: " << path << std::endl;
+	mz_bool result = mz_zip_reader_init_file(&widgetResources, path.c_str(), 0);
+	std::cout << "result: " << result << std::endl;
+
+	if (!result) {
 		Exception::Throw("Could not open SurrealEngine.pk3");
+	}
 }
 
 void DeinitWidgetResources()

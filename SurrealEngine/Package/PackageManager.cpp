@@ -36,6 +36,7 @@
 #include "Native/NParticleIterator.h"
 #include "Native/NScriptedPawn.h"
 #include "Native/NPlayerPawnExt.h"
+#include <iostream>
 
 PackageManager::PackageManager(const GameLaunchInfo& launchInfo) : launchInfo(launchInfo)
 {
@@ -52,12 +53,14 @@ PackageManager::PackageManager(const GameLaunchInfo& launchInfo) : launchInfo(la
 	// File::write_all_text("C:\\Development\\UTNativeFuncs.txt", NativeFuncExtractor::Run(this));
 }
 
-Package* PackageManager::GetPackage(const NameString& name)
+Package* PackageManager::GetPackage(const NameString& name, int debugIndex)
 {
+	std::cout << "Debug Index: " << debugIndex << std::endl;
+
 	auto& package = packages[name];
 	if (package)
 		return package.get();
-	
+
 	auto it = packageFilenames.find(name);
 	if (it != packageFilenames.end())
 	{
@@ -71,8 +74,29 @@ Package* PackageManager::GetPackage(const NameString& name)
 	return package.get();
 }
 
+bool PackageManager::PackageExists(const NameString& name, int debugIndex)
+{
+	std::cout << "Debug Index: " << debugIndex << std::endl;
+
+	auto& package = packages[name];
+	if (package)
+		return package.get();
+
+	auto it = packageFilenames.find(name);
+	if (it != packageFilenames.end())
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
 Package* PackageManager::GetPackageFromPath(const std::string& path)
 {
+	std::cout << "GetPackageFromPath" << std::endl;
+
 	auto absolute_path = FilePath::relative_to_absolute_from_system(FilePath::combine(launchInfo.gameRootFolder, "System"), path);
 
 	// Manually find the relevant package
@@ -189,7 +213,7 @@ std::shared_ptr<PackageStream> PackageManager::GetStream(Package* package)
 
 	OpenStream s;
 	s.Pkg = package;
-	s.Stream = std::make_shared<PackageStream>(package, File::open_existing(package->GetPackageFilename()));
+	s.Stream = std::make_shared<PackageStream>(package, File::open_existing(package->GetPackageFilename(), 4));
 	openStreams.push_front(s);
 
 	if (numStreams == 10)
@@ -212,7 +236,8 @@ void PackageManager::DelayLoadNow()
 
 UObject* PackageManager::NewObject(const NameString& name, const NameString& package, const NameString& className)
 {
-	Package* pkg = GetPackage(package);
+std::cout << "GP24" << std::endl;	
+	Package* pkg = GetPackage(package, 989);
 	UClass* cls = UObject::Cast<UClass>(pkg->GetUObject("Class", className));
 	if (!cls)
 		Exception::Throw("Could not find class " + className.ToString());
@@ -221,8 +246,9 @@ UObject* PackageManager::NewObject(const NameString& name, const NameString& pac
 
 UObject* PackageManager::NewObject(const NameString& name, UClass* cls)
 {
+std::cout << "GP23" << std::endl;	
 	// To do: package needs to be grabbed from outer, or the "transient package" if it is None, a virtual package for runtime objects
-	return GetPackage("Engine")->NewObject(name, cls, ObjectFlags::NoFlags, true);
+	return GetPackage("Engine", 988)->NewObject(name, cls, ObjectFlags::NoFlags, true);
 }
 
 UClass* PackageManager::FindClass(const NameString& name)
@@ -237,7 +263,7 @@ UClass* PackageManager::FindClass(const NameString& name)
 
 	try
 	{
-		return UObject::Cast<UClass>(GetPackage(packageName)->GetUObject("Class", className));
+		return UObject::Cast<UClass>(GetPackage(packageName, 985)->GetUObject("Class", className));
 	}
 	catch (...)
 	{

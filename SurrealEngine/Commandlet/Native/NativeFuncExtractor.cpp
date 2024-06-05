@@ -18,8 +18,8 @@ std::string NativeFuncExtractor::Run(PackageManager* packages)
 	{
 		if (pkgname == "Editor")
 			continue;
-
-		Package* package = packages->GetPackage(pkgname.ToString());
+std::cout << "GP7" << std::endl;
+		Package* package = packages->GetPackage(pkgname.ToString(), 995);
 
 		JsonValue jsonPackage = CreatePackageJson(package);
 		if (jsonPackage.properties().size() > 0)

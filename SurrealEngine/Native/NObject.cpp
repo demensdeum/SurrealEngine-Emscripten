@@ -7,6 +7,11 @@
 #include "Engine.h"
 #include "Math/quaternion.h"
 #include <cmath>
+#include <iostream>
+
+#ifdef EMSCRIPTEN
+#include <emscripten.h>
+#endif
 
 #ifdef _MSC_VER
 #pragma warning(disable: 4244) // warning C4244: '/=': conversion from 'float' to 'int', possible loss of data
@@ -434,9 +439,11 @@ void NObject::DynamicLoadObject(const std::string& ObjectName, UObject* ObjectCl
 			std::string packageName = ObjectName.substr(0, dotpos);
 			std::string objectName = ObjectName.substr(dotpos + 1);
 
+			std::cout << "NObject::DynamicLoadObject" << std::endl;
 			try
 			{
-				ReturnValue = engine->packages->GetPackage(packageName)->GetUObject(ObjectClass->Name, objectName);
+std::cout << "GP9" << std::endl;				
+				ReturnValue = engine->packages->GetPackage(packageName, 993)->GetUObject(ObjectClass->Name, objectName);
 			}
 			catch (...)
 			{

@@ -485,7 +485,7 @@ add_definitions(-w)
 
 if(EMSCRIPTEN)
 add_compile_definitions(NO_SSE)
-set(CMAKE_CXX_FLAGS " -s EXCEPTION_DEBUG -fexceptions --preload-file UnrealGold/ --preload-file SurrealEngine.pk3 --bind --use-preload-plugins -Wall -Wextra -Werror=return-type -s USE_SDL=2 -s USE_SDL_TTF=2 -s USE_SDL_IMAGE=2 -s USE_LIBPNG=1 -s ASSERTIONS=1 -s DISABLE_EXCEPTION_CATCHING=0 -s SDL2_IMAGE_FORMATS='[\"png\"]' -O3 --no-heap-copy -s ALLOW_MEMORY_GROWTH=1 -s EXIT_RUNTIME=1")
+set(CMAKE_CXX_FLAGS " -s EXCEPTION_DEBUG -fexceptions --preload-file UnrealTournament/ --preload-file SurrealEngine.pk3 --bind --use-preload-plugins -Wall -Wextra -Werror=return-type -s USE_SDL=2 -s USE_SDL_TTF=2 -s USE_SDL_IMAGE=2 -s USE_LIBPNG=1 -s ASSERTIONS=1 -s DISABLE_EXCEPTION_CATCHING=0 -s SDL2_IMAGE_FORMATS='[\"png\"]' -O3 --no-heap-copy -s ALLOW_MEMORY_GROWTH=1 -s EXIT_RUNTIME=1")
 endif()
 
 source_group("SurrealEngine" REGULAR_EXPRESSION "${CMAKE_CURRENT_SOURCE_DIR}/SurrealEngine/.+")

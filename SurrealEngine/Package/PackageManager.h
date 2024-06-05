@@ -32,7 +32,8 @@ public:
 	int GetEngineVersion() const { return launchInfo.engineVersion; }
 	int GetEngineSubVersion() const { return launchInfo.engineSubVersion; }
 
-	Package *GetPackage(const NameString& name);
+	bool PackageExists(const NameString& name, int debugIndex);
+	Package *GetPackage(const NameString& name, int debugIndex);
 	Package *GetPackageFromPath(const std::string& path);
 	std::vector<NameString> GetPackageNames() const;
 

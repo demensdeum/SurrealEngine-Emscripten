@@ -36,7 +36,8 @@ AllFilesIterator::AllFilesIterator(const std::string& FileExtension, const std::
 
 	for (auto& packageName : packageNames)
 	{
-		auto package = engine->packages->GetPackage(packageName);
+std::cout << "GP10" << std::endl;		
+		auto package = engine->packages->GetPackage(packageName, 958);
 
 		if ((FileExtension.empty() || FilePath::extension(package->GetPackageFilename()) == FileExtension) && 
 			(FilePrefix.empty() || package->GetPackageFilename().find(FilePrefix) != std::string::npos))

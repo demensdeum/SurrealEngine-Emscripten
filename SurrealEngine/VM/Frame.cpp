@@ -26,7 +26,7 @@ bool Frame::AddBreakpoint(const NameString& packageName, const NameString& clsNa
 	bp.Function = funcName;
 	bp.State = stateName;
 
-	Package* pkg = engine->packages->GetPackage(packageName);
+	Package* pkg = engine->packages->GetPackage(packageName, 957);
 	UClass* cls = UObject::Cast<UClass>(pkg->GetUObject("Class", clsName));
 	if (stateName.IsNone())
 	{

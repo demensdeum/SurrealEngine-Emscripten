@@ -52,7 +52,8 @@ void Engine::Run()
 	client = UObject::Cast<USurrealClient>(packages->NewObject("client", "Engine", "SurrealClient"));
 	viewport = UObject::Cast<UViewport>(packages->NewObject("viewport", "Engine", "Viewport"));
 	canvas = UObject::Cast<UCanvas>(packages->NewObject("canvas", "Engine", "Canvas"));
-	DefaultTexture = UObject::Cast<UTexture>(packages->GetPackage("Engine")->GetUObject("Texture", "DefaultTexture"));
+	std::cout << "GP1" << std::endl;
+	DefaultTexture = UObject::Cast<UTexture>(packages->GetPackage("Engine", 999)->GetUObject("Texture", "DefaultTexture"));
 
 	std::string consolestr = packages->GetIniValue("system", "Engine.Engine", "Console");
 	std::string consolepkg = consolestr.substr(0, consolestr.find('.'));
@@ -310,10 +311,14 @@ void Engine::LoadMap(const UnrealURL& url, const std::map<std::string, std::stri
 
 	// Determine if we're getting a relative path
 	// Which is the case with Unreal's New game menu
-	if (url.Map.substr(0, 2) == "..")
+	if (url.Map.substr(0, 2) == "..") {
+		std::cout << "GP3" << std::endl;
 		LevelPackage = packages->GetPackageFromPath(url.Map);
-	else
-		LevelPackage = packages->GetPackage(FilePath::remove_extension(url.Map));
+	}
+	else {
+		std::cout << "GP2" << std::endl;
+		LevelPackage = packages->GetPackage(FilePath::remove_extension(url.Map), 998);
+	}
 
 	LevelInfo = UObject::Cast<ULevelInfo>(LevelPackage->GetUObject("LevelInfo", "LevelInfo0"));
 	if (packages->IsUnreal1())

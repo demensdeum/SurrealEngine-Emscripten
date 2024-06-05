@@ -3,6 +3,7 @@
 #include "File.h"
 #include "TinySHA1/TinySHA1.hpp"
 #include <filesystem>
+#include <iostream>
 
 std::pair<KnownUE1Games, std::string> FindUE1GameInPath(const std::string& ue1_game_root_folder_path)
 {
@@ -18,10 +19,16 @@ std::pair<KnownUE1Games, std::string> FindUE1GameInPath(const std::string& ue1_g
 	{
 		std::string executable_path = FilePath::combine(ue1_game_system_path, executable_name);
 
+		std::cout << "executable_path: " << executable_path << std::endl;
+
+		// return std::make_pair(KnownUE1Games::UT99_469d, executable_name);
+
 		if (File::try_open_existing(executable_path))
 		{
+			std::cout << "File::try_open_existing(executable_path)" << std::endl;
+			
 			// Such executable exists, let's try to take SHA1Sum of it
-			auto bytes = File::read_all_bytes(executable_path);
+			auto bytes = File::read_all_bytes(executable_path, 1);
 
 			sha1::SHA1 s;
 			s.processBytes(bytes.data(), bytes.size());
@@ -36,8 +43,10 @@ std::pair<KnownUE1Games, std::string> FindUE1GameInPath(const std::string& ue1_g
 			// Now check whether there is a match within the database or not
 			auto it = SHA1Database.find(sha1sum);
 
-			if (it == SHA1Database.end())
+			if (it == SHA1Database.end()) {
+				std::cout << "std::make_pair(KnownUE1Games::UE1_GAME_NOT_FOUND, "")" << std::endl;
 				return std::make_pair(KnownUE1Games::UE1_GAME_NOT_FOUND, "");
+			}
 
 			// Hack: Tactical-Ops has a version that contains the exact same UTv469d executable. Handle that here
 			if (it->second == KnownUE1Games::UT99_469d && executable_name == "TacticalOps.exe")
