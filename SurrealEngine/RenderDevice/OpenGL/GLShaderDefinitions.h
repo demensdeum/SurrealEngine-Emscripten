@@ -2,8 +2,7 @@
 
 // Shaders taken from VulkanRenderDevice, and modified a bit to fit OpenGL 3.3
 
-const std::string vertexShaderCode = R"(
-	#version 300 es
+const std::string vertexShaderCode = R"(#version 300 es
 
 	precision mediump float;
 
@@ -36,8 +35,7 @@ const std::string vertexShaderCode = R"(
 	}
 )";
 
-const std::string fragmentShaderCode = R"(
-	#version 300 es
+const std::string fragmentShaderCode = R"(#version 300 es
 
 	precision mediump float;
 	precision mediump int;
