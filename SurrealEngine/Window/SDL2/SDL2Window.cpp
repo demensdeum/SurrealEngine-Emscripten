@@ -17,11 +17,19 @@ SDL2Window::SDL2Window(GameWindowHost *windowHost) : windowHost(windowHost)
         SDLWindowError("Unable to initialize SDL: " + std::string(SDL_GetError()));
     }
     // Width and height won't matter much as the window will be resized based on the values in [GameExecutableName].ini anyways
+
+    #ifdef EMSCRIPTEN
+    m_SDLWindow = SDL_CreateWindow("Surreal Engine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, SDL_WINDOW_OPENGL);
+    #else
     m_SDLWindow = SDL_CreateWindow("Surreal Engine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, SDL_WINDOW_VULKAN);
+    #endif
     if (!m_SDLWindow) {
         SDLWindowError("Unable to create SDL Window: " + std::string(SDL_GetError()));
     }
 
+#ifdef EMSCRIPTEN
+rendDevice = RenderDevice::Create(this, nullptr);
+#else
     // Generate a required extensions list
     unsigned int extCount;
     SDL_Vulkan_GetInstanceExtensions(m_SDLWindow, &extCount, nullptr);
@@ -43,8 +51,9 @@ SDL2Window::SDL2Window(GameWindowHost *windowHost) : windowHost(windowHost)
     SDL_Vulkan_CreateSurface(m_SDLWindow, instance->Instance, &surfaceHandle);
 
     auto surface = std::make_shared<VulkanSurface>(instance, surfaceHandle);
-
     rendDevice = RenderDevice::Create(this, surface);
+#endif
+
 
     windows[SDL_GetWindowID(m_SDLWindow)] = this;
 }
