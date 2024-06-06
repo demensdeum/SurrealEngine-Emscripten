@@ -21,6 +21,8 @@ public:
 	SDL2Window(GameWindowHost *windowHost);
 	~SDL2Window();
 
+	static SDL_Window* currentWindow;
+
 	static void ProcessEvents();
 	static void RunLoop();
 	static void ExitLoop();
@@ -67,4 +69,8 @@ public:
 
 	static std::map<int, SDL2Window*> windows;
 	static bool exitRunLoop;
+
+	SDL_GLContext glContext;
+
+	OpenGLProcAddress OpenGL_GetProcAddress() override;	
 };

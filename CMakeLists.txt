@@ -182,6 +182,20 @@ set(SURREALCOMMON_SOURCES
 
 	SurrealEngine/RenderDevice/OpenGL/OpenGLRenderDevice.cpp
 	SurrealEngine/RenderDevice/OpenGL/OpenGLRenderDevice.h
+	SurrealEngine/RenderDevice/OpenGL/GLObjects.cpp
+	SurrealEngine/RenderDevice/OpenGL/GLObjects.h
+	SurrealEngine/RenderDevice/OpenGL/GLShader.cpp
+	SurrealEngine/RenderDevice/OpenGL/GLShader.h
+	SurrealEngine/RenderDevice/OpenGL/GLShaderDefinitions.h
+	SurrealEngine/RenderDevice/OpenGL/GLShaderManager.cpp
+	SurrealEngine/RenderDevice/OpenGL/GLShaderManager.h
+	SurrealEngine/RenderDevice/OpenGL/GLTexture.cpp
+	SurrealEngine/RenderDevice/OpenGL/GLTexture.h
+	SurrealEngine/RenderDevice/OpenGL/GLTextureManager.cpp
+	SurrealEngine/RenderDevice/OpenGL/GLTextureManager.h
+	SurrealEngine/RenderDevice/OpenGL/GLFramebufferManager.cpp
+	SurrealEngine/RenderDevice/OpenGL/GLFramebufferManager.h
+	SurrealEngine/RenderDevice/OpenGL/SceneData.h
 
 	SurrealEngine/RenderDevice/RenderDevice.cpp
 	SurrealEngine/RenderDevice/RenderDevice.h
@@ -485,7 +499,7 @@ set(SURREALENGINE_SOURCES
 )
 
 
-add_definitions(-w)
+add_definitions(-w -g)
 
 if(EMSCRIPTEN)
 add_compile_definitions(NO_SSE)
@@ -574,7 +588,8 @@ set_target_properties(SurrealCommon PROPERTIES CXX_STANDARD 17)
 target_precompile_headers(SurrealCommon PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/SurrealEngine/Precomp.h>)
 
 add_executable(SurrealEngine WIN32 MACOSX_BUNDLE ${SURREALENGINE_SOURCES})
-target_link_libraries(SurrealEngine SurrealCommon ${SURREALCOMMON_LIBS})
+
+target_link_libraries(SurrealEngine SurrealCommon GL GLEW ${SURREALCOMMON_LIBS})
 set_target_properties(SurrealEngine PROPERTIES CXX_STANDARD 17)
 
 if(WIN32)

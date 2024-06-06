@@ -1,14 +1,22 @@
 #pragma once
 
+#include <memory>
+#include <deque>
+
 #include "RenderDevice/RenderDevice.h"
-#include "Math/mat.h"
-#include "Math/vec.h"
+
+#include "GLTextureManager.h"
+#include "GLShaderManager.h"
+#include "GLFramebufferManager.h"
+#include "GLDrawCommand.h"
+
+#include <GL/glew.h>
 
 class OpenGLRenderDevice : public RenderDevice
 {
 public:
-    OpenGLRenderDevice(GameWindow* InViewport);
-    ~OpenGLRenderDevice();
+	OpenGLRenderDevice(GameWindow* InWindow);
+	~OpenGLRenderDevice();
 
 	void Flush(bool AllowPrecache) override;
 	bool Exec(std::string Cmd, OutputDevice& Ar) override;
@@ -27,4 +35,15 @@ public:
 	void PrecacheTexture(FTextureInfo& Info, uint32_t PolyFlags) override;
 	bool SupportsTextureFormat(TextureFormat Format) override;
 	void UpdateTextureRect(FTextureInfo& Info, int U, int V, int UL, int VL) override;
+private:
+	FSceneNode* CurrentFrame = nullptr;
+	void DrawScene();
+	void Draw(GLDrawCommand& drawCommand);
+
+	float Aspect;
+
+	std::unique_ptr<GLFrameBufferManager> Framebuffers;
+	std::unique_ptr<GLTextureManager> Textures;
+	std::unique_ptr<GLShaderManager> Shaders;
+	std::deque<GLDrawCommand> CommandBuffer;
 };

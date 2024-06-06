@@ -8,8 +8,22 @@
 
 #include "RenderDevice/RenderDevice.h"
 
+#include <GL/glew.h>
+
+#include <iostream>
+
 std::map<int, SDL2Window*> SDL2Window::windows;
 bool SDL2Window::exitRunLoop = false;
+
+SDL_Window* SDL2Window::currentWindow = nullptr;
+
+// static void  FSGL_openGLDebugCallback(GLenum, GLenum type, GLuint, GLenum, GLsizei, const GLchar *message, const void *)
+// {
+//     if (type != GL_DEBUG_TYPE_OTHER)
+//     {
+//         std::cout << "OpenGL: "<< message << std::endl;
+//     }
+// }
 
 SDL2Window::SDL2Window(GameWindowHost *windowHost) : windowHost(windowHost)
 {
@@ -18,18 +32,89 @@ SDL2Window::SDL2Window(GameWindowHost *windowHost) : windowHost(windowHost)
     }
     // Width and height won't matter much as the window will be resized based on the values in [GameExecutableName].ini anyways
 
-    #ifdef EMSCRIPTEN
-    m_SDLWindow = SDL_CreateWindow("Surreal Engine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, SDL_WINDOW_OPENGL);
-    #else
+#define NATIVE_OPENGL_ENABLED
+#if defined EMSCRIPTEN || defined NATIVE_OPENGL_ENABLED
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+
+    m_SDLWindow = SDL_CreateWindow(
+        "Surreal Engine", 
+        SDL_WINDOWPOS_CENTERED, 
+        SDL_WINDOWPOS_CENTERED, 
+        640, 
+        480, 
+        SDL_WINDOW_OPENGL
+    );
+    
+    SDL2Window::currentWindow = m_SDLWindow;
+
+    glContext = SDL_GL_CreateContext(m_SDLWindow);
+
+    if (glContext == NULL)
+    {
+        std::cout << "SDL_GL_CreateContext: " << SDL_GetError() << std::endl;
+        exit(1);
+    }
+    else {
+        std::cout << "glContext is not nuLL! " << std::endl;
+    }
+
+    GLenum result = glewInit();
+
+    if (result != GLEW_OK)
+    {
+        fprintf(stderr, "Error: %s\n", glewGetErrorString(result));
+        exit(1);
+    }
+    else {
+        std::cout << "OPENGL INITIALIZE SUCCESS!" << std::endl;
+    }
+
+    SDL_GL_MakeCurrent(m_SDLWindow, glContext);
+
+    // glEnable(GL_DEBUG_OUTPUT);
+    // if (glGetError() != GL_NO_ERROR)
+    // {
+    //     std::cout << "Can't enable debug output" << std::endl;
+    //     exit(1);
+    // }
+
+    // glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+    // if (glGetError() != GL_NO_ERROR)
+    // {
+    //     std::cout << "Can't enable debug output synchronous" << std::endl;
+    //     exit(1);
+    // }
+
+    // glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
+    // if (glGetError() != GL_NO_ERROR)
+    // {
+    //     std::cout << "Can't enable debug message control" << std::endl;
+    //     exit(1);
+    // }
+
+    // glDebugMessageCallback(FSGL_openGLDebugCallback, NULL);
+
+	// GLchar infoLog[512];
+    // GLint fragment_shader;
+    // GLint shader_program;
+    // GLint success;
+    // GLint vertex_shader;
+
+    // vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+	// std::cout << "VERTEX_SHARED SUCCESS" << std::endl;
+	// exit(1);
+
+    rendDevice = RenderDevice::Create(this);
+#else
+
     m_SDLWindow = SDL_CreateWindow("Surreal Engine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, SDL_WINDOW_VULKAN);
-    #endif
+
     if (!m_SDLWindow) {
         SDLWindowError("Unable to create SDL Window: " + std::string(SDL_GetError()));
     }
 
-#ifdef EMSCRIPTEN
-rendDevice = RenderDevice::Create(this, nullptr);
-#else
     // Generate a required extensions list
     unsigned int extCount;
     SDL_Vulkan_GetInstanceExtensions(m_SDLWindow, &extCount, nullptr);
@@ -53,8 +138,6 @@ rendDevice = RenderDevice::Create(this, nullptr);
     auto surface = std::make_shared<VulkanSurface>(instance, surfaceHandle);
     rendDevice = RenderDevice::Create(this, surface);
 #endif
-
-
     windows[SDL_GetWindowID(m_SDLWindow)] = this;
 }
 
@@ -67,6 +150,11 @@ SDL2Window::~SDL2Window()
     }
     if (windows.empty())
         SDL_Quit();
+}
+
+OpenGLProcAddress SDL2Window::OpenGL_GetProcAddress()
+{
+    return (OpenGLProcAddress)SDL_GL_GetProcAddress;
 }
 
 void SDL2Window::ProcessEvents()

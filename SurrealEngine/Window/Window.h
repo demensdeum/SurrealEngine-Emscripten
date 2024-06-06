@@ -83,6 +83,8 @@ enum EInputType
 	IST_Axis
 };
 
+typedef void (*OpenGLProcAddress)(const char*);
+
 class GameWindow;
 
 class GameWindowHost
@@ -149,4 +151,6 @@ public:
 	void SetResolution(std::string& resolutionString);
 
 	bool isWindowFullscreen = false;
+
+	virtual OpenGLProcAddress OpenGL_GetProcAddress() = 0;	
 };
