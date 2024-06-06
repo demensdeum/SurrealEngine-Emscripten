@@ -87,7 +87,9 @@ std::shared_ptr<File> File::create_always(const std::string &filename)
 
 std::shared_ptr<File> File::open_existing(const std::string &filename, int debug_index)
 {
+#ifdef DEBUG_INDEXING_ENABLED
 	std::cout << "File::open_existing: " << filename << ", debug_index: " << debug_index << std::endl;
+#endif
 	FILE* handle = fopen(filename.c_str(), "rb");
 	if (handle == nullptr)
 		Exception::Throw("Could not open " + filename);
@@ -109,7 +111,9 @@ void File::write_all_text(const std::string& filename, const std::string& text)
 
 std::vector<uint8_t> File::read_all_bytes(const std::string& filename, int debug_index)
 {
+#ifdef DEBUG_INDEXING_ENABLED	
 	std::cout << "File::read_all_bytes; debug_index: " << debug_index << std::endl;
+#endif
 	auto file = open_existing(filename, 1);
 	std::vector<uint8_t> buffer(file->size());
 	file->read(buffer.data(), buffer.size());

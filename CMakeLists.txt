@@ -179,6 +179,10 @@ set(SURREALCOMMON_SOURCES
 	SurrealEngine/Native/NParticleIterator.h
 	SurrealEngine/Native/NPlayerPawnExt.cpp
 	SurrealEngine/Native/NPlayerPawnExt.h
+
+	SurrealEngine/RenderDevice/OpenGL/OpenGLRenderDevice.cpp
+	SurrealEngine/RenderDevice/OpenGL/OpenGLRenderDevice.h
+
 	SurrealEngine/RenderDevice/RenderDevice.cpp
 	SurrealEngine/RenderDevice/RenderDevice.h
 	SurrealEngine/RenderDevice/Vulkan/BufferManager.cpp

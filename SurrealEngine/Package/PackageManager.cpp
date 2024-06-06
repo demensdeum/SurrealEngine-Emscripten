@@ -55,7 +55,9 @@ PackageManager::PackageManager(const GameLaunchInfo& launchInfo) : launchInfo(la
 
 Package* PackageManager::GetPackage(const NameString& name, int debugIndex)
 {
+	#ifdef DEBUG_INDEXING_ENABLED
 	std::cout << "Debug Index: " << debugIndex << std::endl;
+	#endif
 
 	auto& package = packages[name];
 	if (package)
@@ -76,7 +78,9 @@ Package* PackageManager::GetPackage(const NameString& name, int debugIndex)
 
 bool PackageManager::PackageExists(const NameString& name, int debugIndex)
 {
+	#ifdef DEBUG_INDEXING_ENABLED
 	std::cout << "Debug Index: " << debugIndex << std::endl;
+	#endif
 
 	auto& package = packages[name];
 	if (package)
