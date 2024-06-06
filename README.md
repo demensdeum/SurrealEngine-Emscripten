@@ -1,4 +1,7 @@
-# Emscripten Build
+# Emscripten Build  
+  
+OpenGL Renderer partially from LupertEverett:  
+https://github.com/LupertEverett/SurrealEngine/tree/openglrenderdevice  
 
 Right now ends with error:  
 Unable to create SDL Window: Vulkan support is either not configured in SDL or not available in current SDL video driver (emscripten) or platform  
