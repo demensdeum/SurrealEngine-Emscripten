@@ -34,9 +34,10 @@ SDL2Window::SDL2Window(GameWindowHost *windowHost) : windowHost(windowHost)
 
 #define NATIVE_OPENGL_ENABLED
 #if defined EMSCRIPTEN || defined NATIVE_OPENGL_ENABLED
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
 
     m_SDLWindow = SDL_CreateWindow(
         "Surreal Engine", 
