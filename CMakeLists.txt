@@ -511,6 +511,7 @@ set(CMAKE_CXX_FLAGS "-s MIN_WEBGL_VERSION=2 \
 -Wall \
 -Wextra \
 -Werror=return-type \
+-lopenal \
 -s USE_SDL=2 \
 -s USE_SDL_TTF=2 \
 -s USE_SDL_IMAGE=2 \

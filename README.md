@@ -3,7 +3,7 @@
 OpenGL Renderer partially from LupertEverett:  
 https://github.com/LupertEverett/SurrealEngine/tree/openglrenderdevice  
 
-Right now ends with std::length_error "vector" exception on audio initializing
+Right now it runs engine, load code, UnrealScript runtime works, but no render image and no sound.
   
 # Surreal Engine
 

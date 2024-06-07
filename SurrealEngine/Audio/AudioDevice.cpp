@@ -15,6 +15,7 @@
 #include <AL/al.h>
 #include <AL/alc.h>
 #include <AL/alext.h>
+#include <iostream>
 
 #define UU_PER_METER 43
 
@@ -168,6 +169,25 @@ private:
 	bool bIs3d = false;
 };
 
+class DummyAudioDevice: public AudioDevice
+{
+	public:
+		DummyAudioDevice(int inFrequency, int numVoices, int inMusicBufferCount, int inMusicBufferSize) {};
+		~DummyAudioDevice() {};
+		void AddSound(USound* sound) override {};
+		void RemoveSound(USound* sound) override {};
+		bool IsPlaying(int channel) override { return false; };
+		int PlaySound(int channel, USound* sound, vec3& location, float volume, float radius, float pitch) override {
+			return 0;
+		};
+		void PlayMusic(std::unique_ptr<AudioSource> source) override {};
+		void UpdateSound(int channel, USound* sound, vec3& location, float volume, float radius, float pitch) override {};
+		void StopSound(int channel) override {};
+		void SetMusicVolume(float volume) override {};
+		void SetSoundVolume(float volume) override {};
+		void Update() override {};
+};
+
 // TODO list:
 //  Sound looping
 //  Positional audio
@@ -225,12 +245,29 @@ public:
 		alDistanceModel(AL_LINEAR_DISTANCE_CLAMPED);
 		alSpeedOfSound(343.3f / (1.0f / UU_PER_METER));
 
+		ALCenum error = alcGetError(alDevice);
+		if (error != ALC_NO_ERROR) {
+			std::cerr << "ALC error: " << error << std::endl;
+		} else {
+			std::cout << "Number of mono sources: " << monoSources << std::endl;
+		}
+
 		// Init sound sources
+		std::cout << "Mono sources count before:" << monoSources << std::endl;
+
 		alcGetIntegerv(alDevice, ALC_MONO_SOURCES, 1, &monoSources);
 		alcGetIntegerv(alDevice, ALC_STEREO_SOURCES, 1, &stereoSources);
 
+		std::cout << "Mono sources count after:" << monoSources << std::endl;
+
 		// TODO: how do we prioritize mono vs stereo source count?
-		sources.resize(monoSources);
+		if (monoSources < 1) {
+			std::cout << "STOP RESIZE TO 0 count!!!" << std::endl;
+		}
+		else {
+			std::cout << "Resize sources to:" << monoSources << std::endl;
+		}
+		sources.resize(monoSources);		
 
 		// init music source/buffer
 		alGenSources(1, &alMusicSource);
@@ -671,6 +708,11 @@ public:
 };
 
 std::unique_ptr<AudioDevice> AudioDevice::Create(int frequency, int numVoices, int musicBufferCount, int musicBufferSize)
+{
+	return std::make_unique<DummyAudioDevice>(frequency, numVoices, musicBufferCount, musicBufferSize);
+}
+
+std::unique_ptr<AudioDevice> AudioDevice::CreateUnused(int frequency, int numVoices, int musicBufferCount, int musicBufferSize)
 {
 	return std::make_unique<OpenALAudioDevice>(frequency, numVoices, musicBufferCount, musicBufferSize);
 }

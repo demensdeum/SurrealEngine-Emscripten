@@ -41,65 +41,73 @@ Engine::~Engine()
 	engine = nullptr;
 }
 
+bool engine_initialized = false;
+UObjectProperty objprop({}, nullptr, ObjectFlags::NoFlags);
+UStructProperty vecprop({}, nullptr, ObjectFlags::NoFlags);
+UStructProperty rotprop({}, nullptr, ObjectFlags::NoFlags);
+
 void Engine::Run()
 {
-	std::cout << "Engine::RUN()" << std::endl;
-	std::srand((unsigned int)std::time(nullptr));
+	#ifdef EMSCRIPTEN
+	if (engine_initialized != true) {
+	#endif
+		std::cout << "Engine::RUN()" << std::endl;
+		std::srand((unsigned int)std::time(nullptr));
 
-	gameengine = UObject::Cast<UGameEngine>(packages->NewObject("gameengine", "Engine", "GameEngine"));
-	audiodev = UObject::Cast<USurrealAudioDevice>(packages->NewObject("audiodev", "Engine", "SurrealAudioDevice"));
-	renderdev = UObject::Cast<USurrealRenderDevice>(packages->NewObject("renderdev", "Engine", "SurrealRenderDevice"));
-	netdev = UObject::Cast<USurrealNetworkDevice>(packages->NewObject("netdev", "Engine", "SurrealNetworkDevice"));
-	client = UObject::Cast<USurrealClient>(packages->NewObject("client", "Engine", "SurrealClient"));
-	viewport = UObject::Cast<UViewport>(packages->NewObject("viewport", "Engine", "Viewport"));
-	canvas = UObject::Cast<UCanvas>(packages->NewObject("canvas", "Engine", "Canvas"));
-	std::cout << "GP1" << std::endl;
-	DefaultTexture = UObject::Cast<UTexture>(packages->GetPackage("Engine", 999)->GetUObject("Texture", "DefaultTexture"));
+		gameengine = UObject::Cast<UGameEngine>(packages->NewObject("gameengine", "Engine", "GameEngine"));
+		audiodev = UObject::Cast<USurrealAudioDevice>(packages->NewObject("audiodev", "Engine", "SurrealAudioDevice"));
+		renderdev = UObject::Cast<USurrealRenderDevice>(packages->NewObject("renderdev", "Engine", "SurrealRenderDevice"));
+		netdev = UObject::Cast<USurrealNetworkDevice>(packages->NewObject("netdev", "Engine", "SurrealNetworkDevice"));
+		client = UObject::Cast<USurrealClient>(packages->NewObject("client", "Engine", "SurrealClient"));
+		viewport = UObject::Cast<UViewport>(packages->NewObject("viewport", "Engine", "Viewport"));
+		canvas = UObject::Cast<UCanvas>(packages->NewObject("canvas", "Engine", "Canvas"));
+		std::cout << "GP1" << std::endl;
+		DefaultTexture = UObject::Cast<UTexture>(packages->GetPackage("Engine", 999)->GetUObject("Texture", "DefaultTexture"));
 
-	std::string consolestr = packages->GetIniValue("system", "Engine.Engine", "Console");
-	std::string consolepkg = consolestr.substr(0, consolestr.find('.'));
-	std::string consolecls = consolestr.substr(consolestr.find('.') + 1);
-	console = UObject::Cast<UConsole>(packages->NewObject("console", consolepkg, consolecls));
+		std::string consolestr = packages->GetIniValue("system", "Engine.Engine", "Console");
+		std::string consolepkg = consolestr.substr(0, consolestr.find('.'));
+		std::string consolecls = consolestr.substr(consolestr.find('.') + 1);
+		console = UObject::Cast<UConsole>(packages->NewObject("console", consolepkg, consolecls));
 
-	console->Viewport() = viewport;
-	canvas->Viewport() = viewport;
-	viewport->Console() = console;
+		console->Viewport() = viewport;
+		canvas->Viewport() = viewport;
+		viewport->Console() = console;
 
-	LoadEngineSettings();
-	LoadKeybindings();
+		LoadEngineSettings();
+		LoadKeybindings();
 
-	std::cout << "Engine::RUN::PREOPEN_WINDOW" << std::endl;
-	OpenWindow();
-	std::cout << "Engine::RUN::POSTOPEN_WINDOW" << std::endl;
+		std::cout << "Engine::RUN::PREOPEN_WINDOW" << std::endl;
+		OpenWindow();
+		std::cout << "Engine::RUN::POSTOPEN_WINDOW" << std::endl;
 
-	audio = std::make_unique<AudioSubsystem>();
-	std::cout << "audio = std::make_unique<AudioSubsystem>();" << std::endl;
-	render = std::make_unique<RenderSubsystem>(window->GetRenderDevice());
-	std::cout << "render = std::make_unique<RenderSubsystem>(window->GetRenderDevice());" << std::endl;
+		audio = std::make_unique<AudioSubsystem>();
+		std::cout << "audio = std::make_unique<AudioSubsystem>();" << std::endl;
+		render = std::make_unique<RenderSubsystem>(window->GetRenderDevice());
+		std::cout << "render = std::make_unique<RenderSubsystem>(window->GetRenderDevice());" << std::endl;
 
-	if (!client->StartupFullscreen)
-		viewport->bWindowsMouseAvailable() = true;
+		if (!client->StartupFullscreen)
+			viewport->bWindowsMouseAvailable() = true;
 
-	if (!LaunchInfo.noEntryMap)
-		LoadEntryMap();
+		if (!LaunchInfo.noEntryMap)
+			LoadEntryMap();
 
-	if (LaunchInfo.url.empty())
-		LoadMap(GetDefaultURL(packages->GetIniValue("system", "URL", "LocalMap")));
-	else
-		LoadMap(UnrealURL(GetDefaultURL(packages->GetIniValue("system", "URL", "LocalMap")), LaunchInfo.url));
+		if (LaunchInfo.url.empty())
+			LoadMap(GetDefaultURL(packages->GetIniValue("system", "URL", "LocalMap")));
+		else
+			LoadMap(UnrealURL(GetDefaultURL(packages->GetIniValue("system", "URL", "LocalMap")), LaunchInfo.url));
 
-	LoginPlayer();
+		LoginPlayer();
 
-	window->LockCursor();
-
-	UObjectProperty objprop({}, nullptr, ObjectFlags::NoFlags);
-	UStructProperty vecprop({}, nullptr, ObjectFlags::NoFlags);
-	UStructProperty rotprop({}, nullptr, ObjectFlags::NoFlags);
-
-	bool firstCall = true;
+		window->LockCursor();
+#ifdef EMSCRIPTEN
+		engine_initialized = true;
+		std::cout << "Engine loop started" << std:: endl;		
+	}
+	if (!quit)
+#else	
 	while (!quit)
+#endif
 	{
-		std::cout << "Engine step" << std:: endl;
 		float realTimeElapsed = CalcTimeElapsed();
 		float entryLevelElapsed = EntryLevel ? clamp(realTimeElapsed * EntryLevelInfo->TimeDilation(), 1.0f / 400.0f, 1.0f / 2.5f) : 0.0f;
 		float levelElapsed = clamp(realTimeElapsed * LevelInfo->TimeDilation(), 1.0f / 400.0f, 1.0f / 2.5f);
@@ -217,7 +225,9 @@ void Engine::Run()
 		ViewportHeight = engine->window->GetPixelHeight();
 		render->DrawGame(levelElapsed);
 	}
-
+#ifdef EMSCRIPTEN
+	else {
+#endif
 	window->UnlockCursor();
 
 	if (packages->MissingSESystemIni())
@@ -231,6 +241,9 @@ void Engine::Run()
 	packages->SaveAllIniFiles();
 
 	CloseWindow();
+#ifdef EMSCRIPTEN
+	}
+#endif
 }
 
 void Engine::UpdateAudio()

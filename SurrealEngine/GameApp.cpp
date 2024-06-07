@@ -15,6 +15,14 @@
 
 namespace fs = std::filesystem;
 
+#ifdef EMSCRIPTEN
+#include <emscripten.h>
+Engine *EMSCRIPTEN_GLOBAL_GAME_ENGINE = nullptr;
+void emscripten_game_loop_step() {
+	EMSCRIPTEN_GLOBAL_GAME_ENGINE->Run();
+}
+#endif
+
 int GameApp::main(std::vector<std::string> args)
 {
 
@@ -50,6 +58,11 @@ int GameApp::main(std::vector<std::string> args)
 	commandline = &cmd;
 
 	GameLaunchInfo info = GameFolderSelection::GetLaunchInfo();
+
+#ifdef EMSCRIPTEN
+		EMSCRIPTEN_GLOBAL_GAME_ENGINE = new Engine(info);
+		emscripten_set_main_loop(emscripten_game_loop_step, 0, 0);
+#else
 	if (!info.gameRootFolder.empty())
 	{
 		std::cout << "Engine" << std::endl;
@@ -59,5 +72,6 @@ int GameApp::main(std::vector<std::string> args)
 	}
 
 	DeinitWidgetResources();
+#endif
 	return 0;
 }
