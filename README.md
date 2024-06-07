@@ -3,8 +3,7 @@
 OpenGL Renderer partially from LupertEverett:  
 https://github.com/LupertEverett/SurrealEngine/tree/openglrenderdevice  
 
-Right now ends with error:  
-Unable to create SDL Window: Vulkan support is either not configured in SDL or not available in current SDL video driver (emscripten) or platform  
+Right now ends with std::length_error "vector" exception on audio initializing
   
 # Surreal Engine
 
