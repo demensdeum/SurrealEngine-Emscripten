@@ -14,6 +14,8 @@
 #pragma comment(lib, "comctl32.lib")
 #pragma comment(lib, "Ws2_32.lib")
 
+#include <typeinfo>
+
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
 {
 	try
@@ -63,7 +65,9 @@ int main(int argc, char** argv)
 	}
 	catch (const std::exception& e)
 	{
-		std::cout << e.what() << std::endl;
+		std::cout << "Exception type: " << typeid(e).name() << std::endl;		
+		std::cout << "Exception what: " << e.what() << std::endl;
+		std::cout << "Game stopped because of last exception" << std::endl;
 		return 1;
 	}
 }
