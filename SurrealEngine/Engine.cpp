@@ -43,6 +43,7 @@ Engine::~Engine()
 
 void Engine::Run()
 {
+	std::cout << "Engine::RUN()" << std::endl;
 	std::srand((unsigned int)std::time(nullptr));
 
 	gameengine = UObject::Cast<UGameEngine>(packages->NewObject("gameengine", "Engine", "GameEngine"));
@@ -67,10 +68,14 @@ void Engine::Run()
 	LoadEngineSettings();
 	LoadKeybindings();
 
+	std::cout << "Engine::RUN::PREOPEN_WINDOW" << std::endl;
 	OpenWindow();
+	std::cout << "Engine::RUN::POSTOPEN_WINDOW" << std::endl;
 
 	audio = std::make_unique<AudioSubsystem>();
+	std::cout << "audio = std::make_unique<AudioSubsystem>();" << std::endl;
 	render = std::make_unique<RenderSubsystem>(window->GetRenderDevice());
+	std::cout << "render = std::make_unique<RenderSubsystem>(window->GetRenderDevice());" << std::endl;
 
 	if (!client->StartupFullscreen)
 		viewport->bWindowsMouseAvailable() = true;
@@ -94,6 +99,7 @@ void Engine::Run()
 	bool firstCall = true;
 	while (!quit)
 	{
+		std::cout << "Engine step" << std:: endl;
 		float realTimeElapsed = CalcTimeElapsed();
 		float entryLevelElapsed = EntryLevel ? clamp(realTimeElapsed * EntryLevelInfo->TimeDilation(), 1.0f / 400.0f, 1.0f / 2.5f) : 0.0f;
 		float levelElapsed = clamp(realTimeElapsed * LevelInfo->TimeDilation(), 1.0f / 400.0f, 1.0f / 2.5f);
