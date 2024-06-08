@@ -46,6 +46,8 @@ void OpenGLRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)
 void OpenGLRenderDevice::Unlock(bool Blit)
 {
 	std::cout << "OpenGLRenderDevice::Unlock(bool Blit)" << std::endl;	
+
+	SDL_GL_SwapWindow(SDL2Window::currentWindow);	
 }
 
 void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Surface, FSurfaceFacet& Facet)
@@ -63,7 +65,7 @@ void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
 			  float U, float V, float UL, float VL, float Z, 
 			  vec4 Color, vec4 Fog, uint32_t PolyFlags)
 {
-	std::cout << "OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info," << std::endl;
+	//std::cout << "OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info," << std::endl;
 }
 
 void OpenGLRenderDevice::Draw3DLine(FSceneNode* Frame, vec4 Color, vec3 P1, vec3 P2)
@@ -85,7 +87,14 @@ void OpenGLRenderDevice::ClearZ(FSceneNode* Frame)
 {
 	std::cout << "OpenGLRenderDevice::ClearZ" << std::endl;
 	glClearDepth(1.0f);
+
+#define TEST_RENDERING
+#ifdef TEST_RENDERING
+    glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+#else
 	glClear(GL_DEPTH_BUFFER_BIT);
+#endif
 }
 
 void OpenGLRenderDevice::ReadPixels(FColor* Pixels)

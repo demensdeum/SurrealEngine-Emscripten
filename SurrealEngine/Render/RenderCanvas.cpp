@@ -6,6 +6,7 @@
 #include "Window/Window.h"
 #include "VM/ScriptCall.h"
 #include "Engine.h"
+#include <iostream>
 
 void RenderSubsystem::ResetCanvas()
 {
@@ -165,6 +166,8 @@ void RenderSubsystem::DrawTileClipped(UTexture* Tex, float orgX, float orgY, flo
 
 void RenderSubsystem::DrawText(UFont* font, vec4 color, float orgX, float orgY, float& curX, float& curY, float& curYL, bool newlineAtEnd, const std::string& text, uint32_t flags, bool center, float spaceX, float spaceY)
 {
+	std::cout << "DrawText: " << text << std::endl;
+
 	float centerX = 0;
 	if (center)
 		centerX = std::round((engine->canvas->SizeX() - GetTextSize(font, text).x) * 0.5f);
@@ -182,6 +185,7 @@ void RenderSubsystem::DrawText(UFont* font, vec4 color, float orgX, float orgY, 
 		}
 		else
 		{
+			std::cout << c << std::endl;
 			FontGlyph glyph = font->GetGlyph(c);
 
 			FTextureInfo texinfo;
