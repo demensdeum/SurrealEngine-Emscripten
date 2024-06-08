@@ -525,6 +525,8 @@ set(CMAKE_CXX_FLAGS "-s MIN_WEBGL_VERSION=2 \
 --no-heap-copy \
 -s ALLOW_MEMORY_GROWTH=1 \
 -s EXIT_RUNTIME=1")
+else()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 endif()
 
 source_group("SurrealEngine" REGULAR_EXPRESSION "${CMAKE_CURRENT_SOURCE_DIR}/SurrealEngine/.+")
