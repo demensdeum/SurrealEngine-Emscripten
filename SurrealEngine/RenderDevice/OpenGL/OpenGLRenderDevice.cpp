@@ -51,7 +51,10 @@ void OpenGLRenderDevice::Unlock(bool Blit)
 {
 	std::cout << "OpenGLRenderDevice::Unlock(bool Blit)" << std::endl;	
 
+	glFinish();
 	SDL_GL_SwapWindow(SDL2Window::currentWindow);	
+
+	//SDL_GL_SwapWindow(SDL2Window::currentWindow);	
 }
 
 void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Surface, FSurfaceFacet& Facet)
@@ -72,19 +75,9 @@ void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
         GLuint shader_program = Shaders->sceneShader->ProgramID;
         GLint vertexSlot = glGetAttribLocation(shader_program, "vertex");
 
-	    GLuint vao, vbo, indexBuffer;
-	    GLsizei    indicesCount = 0;
+	    GLsizei indicesCount = 0;
 	    GLsizeiptr verticesBufferSize, indicesBufferSize;
 	    GLuint textureBinding = 0;
-
-		glGenBuffers(1, &vbo);
-		glGenVertexArrays(1, &vao);
-		glGenBuffers(1, &indexBuffer);
-
-	    glBindVertexArray(vao);
-	    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
-
 
 		GLfloat vertices[] = {
 			0,0,0, 
@@ -94,39 +87,33 @@ void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
 		GLint  vertexCoordsCount = 3;
 
 		GLuint indices[] = {
-			1,2,3
+			0,1,2
 		};
 		indicesCount = 3;
 
-		GLsizei vertexSize = sizeof(GLfloat) * vertexCoordsCount;
-		verticesBufferSize = vertexSize * vertexCoordsCount;
-		indicesBufferSize = sizeof(GLuint) * indicesCount;
 
-		glBufferData(GL_ARRAY_BUFFER, verticesBufferSize, vertices, GL_STATIC_DRAW);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesBufferSize, indices, GL_STATIC_DRAW);
+    GLuint vbo;
+    GLint pos;
 
-        glVertexAttribPointer(vertexSlot, vertexCoordsCount, GL_FLOAT, GL_FALSE, vertexSize, 0);
-        glEnableVertexAttribArray(vertexSlot);
+	pos = glGetAttribLocation(shader_program, "vertex");
 
-        // GLint projectionMatrixUniform;
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glViewport(0, 0, 640, 480);
 
-        // glm::mat4 projectionMatrix = glm::perspective(45.0f, float(float(1920) / float(1080)), 0.0001f, 800.0f);
-        // projectionMatrixUniform = glGetUniformLocation(shader_program, "projectionMatrix");
-        // glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof (vertices), vertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, 0, (GLvoid*) 0);
+    glEnableVertexAttribArray(pos);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-        // auto modelMatrix = glm::mat4(1.0);
-        // auto modelMatrixUniform = glGetUniformLocation(shader_program, "modelMatrix");
-        // glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelMatrix));
+    glClear(GL_COLOR_BUFFER_BIT);
+    glUseProgram(shader_program);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
 
-        // auto viewMatrix = glm::mat4(1.0);
-        // auto viewMatrixUniform = glGetUniformLocation(shader_program, "viewMatrix");
-        // glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+    glDeleteBuffers(1, &vbo);
 
-        glDrawElements(GL_TRIANGLES, indicesCount, GL_UNSIGNED_INT, 0);
-
-		glDeleteVertexArrays(1, &vao);
-		glDeleteBuffers(1, &vbo);
-		glDeleteBuffers(1, &indexBuffer);
+    SDL_GL_SwapWindow(SDL2Window::currentWindow);
 }
 
 void OpenGLRenderDevice::Draw3DLine(FSceneNode* Frame, vec4 Color, vec3 P1, vec3 P2)
@@ -151,11 +138,11 @@ void OpenGLRenderDevice::ClearZ(FSceneNode* Frame)
 
 #define TEST_RENDERING
 #ifdef TEST_RENDERING
-    glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
+    glClearColor(0.2f, 0.35f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 #else
 	glClear(GL_DEPTH_BUFFER_BIT);
-#endif
+#endif	
 }
 
 void OpenGLRenderDevice::ReadPixels(FColor* Pixels)
