@@ -13,6 +13,8 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+float tileCount = 0;
+
 OpenGLRenderDevice::OpenGLRenderDevice(GameWindow* InWindow)
 {
 	std::cout << "OpenGLRenderDevice::OpenGLRenderDevice(GameWindow* InWindow)" << std::endl;
@@ -33,6 +35,7 @@ OpenGLRenderDevice::~OpenGLRenderDevice()
 
 void OpenGLRenderDevice::Flush(bool AllowPrecache)
 {
+	// Flush all OpenGL resources
 	std::cout << "OpenGLRenderDevice::Flush(bool AllowPrecache)" << std::endl;
 }
 
@@ -45,16 +48,18 @@ bool OpenGLRenderDevice::Exec(std::string Cmd, OutputDevice& Ar)
 void OpenGLRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)
 {
 	std::cout << "OpenGLRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)" << std::endl;	
+    glClearColor(0.2f, 0.35f, 0.3f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);		
+	tileCount = 0;
 }
 
 void OpenGLRenderDevice::Unlock(bool Blit)
 {
 	std::cout << "OpenGLRenderDevice::Unlock(bool Blit)" << std::endl;	
 
-	glFinish();
-	SDL_GL_SwapWindow(SDL2Window::currentWindow);	
-
-	//SDL_GL_SwapWindow(SDL2Window::currentWindow);	
+	if (Blit) {
+		SDL_GL_SwapWindow(SDL2Window::currentWindow);	
+	}
 }
 
 void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Surface, FSurfaceFacet& Facet)
@@ -72,6 +77,7 @@ void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
 			  float U, float V, float UL, float VL, float Z, 
 			  vec4 Color, vec4 Fog, uint32_t PolyFlags)
 {
+
         GLuint shader_program = Shaders->sceneShader->ProgramID;
         GLint vertexSlot = glGetAttribLocation(shader_program, "vertex");
 
@@ -79,14 +85,18 @@ void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
 	    GLsizeiptr verticesBufferSize, indicesBufferSize;
 	    GLuint textureBinding = 0;
 
+		GLfloat scale = 0.075;
+
+		tileCount += 1;
+
 		GLfloat vertices[] = {
-			0,0,0, 
-			1,1,0,
-			0,1,0,
+			(GLfloat)-0.8 + tileCount*scale,0, 0, 
+			(GLfloat)-0.8 + tileCount*scale + (GLfloat)0.5 * scale,1*scale, 0,
+			(GLfloat)-0.8 + tileCount*scale, 1 * scale, 0,
 			
-			1,0,0, 
-			0,0,0,
-			1,1,0,
+			(GLfloat)-0.8 + tileCount*scale + (GLfloat)0.5 * scale, 0, 0, 
+			(GLfloat)-0.8 + tileCount*scale, 0, 0,
+			(GLfloat)-0.8 + tileCount*scale + (GLfloat)0.5 * scale,1*scale, 0
 		};
 		GLint  vertexCoordsCount = 6;
 
@@ -101,8 +111,8 @@ void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
 
 	pos = glGetAttribLocation(shader_program, "vertex");
 
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glViewport(0, 0, 640, 480);
+    //glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glViewport(0, 0, 1920, 1080);
 
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -111,13 +121,11 @@ void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
     glEnableVertexAttribArray(pos);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    glClear(GL_COLOR_BUFFER_BIT);
+    //glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(shader_program);
     glDrawArrays(GL_TRIANGLES, 0, vertexCoordsCount);
 
     glDeleteBuffers(1, &vbo);
-
-    SDL_GL_SwapWindow(SDL2Window::currentWindow);
 }
 
 void OpenGLRenderDevice::Draw3DLine(FSceneNode* Frame, vec4 Color, vec3 P1, vec3 P2)
@@ -138,15 +146,7 @@ void OpenGLRenderDevice::Draw2DPoint(FSceneNode* Frame, vec4 Color, float X1, fl
 void OpenGLRenderDevice::ClearZ(FSceneNode* Frame)
 {
 	std::cout << "OpenGLRenderDevice::ClearZ" << std::endl;
-	glClearDepth(1.0f);
-
-#define TEST_RENDERING
-#ifdef TEST_RENDERING
-    glClearColor(0.2f, 0.35f, 0.3f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-#else
 	glClear(GL_DEPTH_BUFFER_BIT);
-#endif	
 }
 
 void OpenGLRenderDevice::ReadPixels(FColor* Pixels)
@@ -171,7 +171,7 @@ void OpenGLRenderDevice::SetSceneNode(FSceneNode* Frame)
 
 	Aspect = Frame->FY / Frame->FX;
 
-	glViewport(Frame->X, Frame->Y, Frame->XB, Frame->YB);
+	//glViewport(Frame->X, Frame->Y, Frame->XB, Frame->YB);
 }
 
 void OpenGLRenderDevice::PrecacheTexture(FTextureInfo& Info, uint32_t PolyFlags)

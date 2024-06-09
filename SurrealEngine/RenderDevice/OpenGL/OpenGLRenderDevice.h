@@ -18,13 +18,36 @@ public:
 	OpenGLRenderDevice(GameWindow* InWindow);
 	~OpenGLRenderDevice();
 
-	void DrawTile(FSceneNode* Frame, FTextureInfo& Info, float X, float Y, float XL, float YL, float U, float V, float UL, float VL, float Z, vec4 Color, vec4 Fog, uint32_t PolyFlags) override;
+	void Flush(bool AllowPrecache) override; // free all resources
 
+	void DrawTile(
+		FSceneNode* Frame, 
+		FTextureInfo& Info, 
+		float X, 
+		float Y, 
+		float XL, 
+		float YL, 
+		float U, 
+		float V, 
+		float UL, 
+		float VL, 
+		float Z, 
+		vec4 Color, 
+		vec4 Fog, 
+		uint32_t PolyFlags
+	) override; // draw 2d cards on screen
 
-	void Flush(bool AllowPrecache) override;
-	bool Exec(std::string Cmd, OutputDevice& Ar) override;
-	void Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear) override;
+	void Lock(
+		vec4 FlashScale,
+		vec4 FlashFog, 
+		vec4 ScreenClear
+	) override; // Pre render screen clear
+	
 	void Unlock(bool Blit) override;
+
+
+
+	bool Exec(std::string Cmd, OutputDevice& Ar) override;
 	void DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Surface, FSurfaceFacet& Facet) override;
 	void DrawGouraudPolygon(FSceneNode* Frame, FTextureInfo& Info, const GouraudVertex* Pts, int NumPts, uint32_t PolyFlags) override;
 	void Draw3DLine(FSceneNode* Frame, vec4 Color, vec3 P1, vec3 P2) override;
