@@ -81,10 +81,14 @@ void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
 
 		GLfloat vertices[] = {
 			0,0,0, 
-			1,0,0,
+			1,1,0,
 			0,1,0,
+			
+			1,0,0, 
+			0,0,0,
+			1,1,0,
 		};
-		GLint  vertexCoordsCount = 3;
+		GLint  vertexCoordsCount = 6;
 
 		GLuint indices[] = {
 			0,1,2
@@ -109,7 +113,7 @@ void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
 
     glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(shader_program);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glDrawArrays(GL_TRIANGLES, 0, vertexCoordsCount);
 
     glDeleteBuffers(1, &vbo);
 
