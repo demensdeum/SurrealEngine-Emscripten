@@ -9,6 +9,10 @@
 #include <SDL2/SDL.h>
 #include <iostream>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 OpenGLRenderDevice::OpenGLRenderDevice(GameWindow* InWindow)
 {
 	std::cout << "OpenGLRenderDevice::OpenGLRenderDevice(GameWindow* InWindow)" << std::endl;
@@ -65,7 +69,64 @@ void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
 			  float U, float V, float UL, float VL, float Z, 
 			  vec4 Color, vec4 Fog, uint32_t PolyFlags)
 {
-	//std::cout << "OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info," << std::endl;
+        GLuint shader_program = Shaders->sceneShader->ProgramID;
+        GLint vertexSlot = glGetAttribLocation(shader_program, "vertex");
+
+	    GLuint vao, vbo, indexBuffer;
+	    GLsizei    indicesCount = 0;
+	    GLsizeiptr verticesBufferSize, indicesBufferSize;
+	    GLuint textureBinding = 0;
+
+		glGenBuffers(1, &vbo);
+		glGenVertexArrays(1, &vao);
+		glGenBuffers(1, &indexBuffer);
+
+	    glBindVertexArray(vao);
+	    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+
+
+		GLfloat vertices[] = {
+			0,0,0, 
+			1,0,0,
+			0,1,0,
+		};
+		GLint  vertexCoordsCount = 3;
+
+		GLuint indices[] = {
+			1,2,3
+		};
+		indicesCount = 3;
+
+		GLsizei vertexSize = sizeof(GLfloat) * vertexCoordsCount;
+		verticesBufferSize = vertexSize * vertexCoordsCount;
+		indicesBufferSize = sizeof(GLuint) * indicesCount;
+
+		glBufferData(GL_ARRAY_BUFFER, verticesBufferSize, vertices, GL_STATIC_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesBufferSize, indices, GL_STATIC_DRAW);
+
+        glVertexAttribPointer(vertexSlot, vertexCoordsCount, GL_FLOAT, GL_FALSE, vertexSize, 0);
+        glEnableVertexAttribArray(vertexSlot);
+
+        // GLint projectionMatrixUniform;
+
+        // glm::mat4 projectionMatrix = glm::perspective(45.0f, float(float(1920) / float(1080)), 0.0001f, 800.0f);
+        // projectionMatrixUniform = glGetUniformLocation(shader_program, "projectionMatrix");
+        // glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
+
+        // auto modelMatrix = glm::mat4(1.0);
+        // auto modelMatrixUniform = glGetUniformLocation(shader_program, "modelMatrix");
+        // glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelMatrix));
+
+        // auto viewMatrix = glm::mat4(1.0);
+        // auto viewMatrixUniform = glGetUniformLocation(shader_program, "viewMatrix");
+        // glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+
+        glDrawElements(GL_TRIANGLES, indicesCount, GL_UNSIGNED_INT, 0);
+
+		glDeleteVertexArrays(1, &vao);
+		glDeleteBuffers(1, &vbo);
+		glDeleteBuffers(1, &indexBuffer);
 }
 
 void OpenGLRenderDevice::Draw3DLine(FSceneNode* Frame, vec4 Color, vec3 P1, vec3 P2)

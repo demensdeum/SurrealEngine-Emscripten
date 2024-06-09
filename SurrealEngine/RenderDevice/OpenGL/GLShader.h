@@ -22,9 +22,11 @@ public:
 
 	void SetUniformMat4(const std::string& uniformName, mat4 value);
 	void SetUniformSampler2D(const std::string& uniformName, const int GLTextureSlot);
+
+	GLuint ProgramID;
+	
 private:
 	void CheckCompileErrors(GLuint Object, const std::string ObjectType, int debug_index) const;
 	void CheckLinkErrors() const;
 
-	GLuint ProgramID;
 };

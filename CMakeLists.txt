@@ -565,7 +565,7 @@ source_group("Thirdparty\\dumb\\include" REGULAR_EXPRESSION "${CMAKE_CURRENT_SOU
 source_group("Thirdparty\\dumb\\include\\internal" REGULAR_EXPRESSION "${CMAKE_CURRENT_SOURCE_DIR}/Thirdparty/dumb/include/internal/.+")
 source_group("Thirdparty\\miniz" REGULAR_EXPRESSION "${CMAKE_CURRENT_SOURCE_DIR}/Thirdparty/miniz/.+")
 
-include_directories(SurrealEngine Thirdparty Thirdparty/ZVulkan/include Thirdparty/ZWidget/include Thirdparty/dumb/include Thirdparty/openal-soft/include Thirdparty/miniz)
+include_directories(SurrealEngine Thirdparty Thirdparty/glm Thirdparty/ZVulkan/include Thirdparty/ZWidget/include Thirdparty/dumb/include Thirdparty/openal-soft/include Thirdparty/miniz)
 
 if(NOT APPLE AND SDL2_FOUND)
 	include_directories(SurrealEngine ${SDL2_INCLUDE_DIRS})
