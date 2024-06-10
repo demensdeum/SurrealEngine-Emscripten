@@ -506,6 +506,7 @@ set(CMAKE_CXX_FLAGS "-s MIN_WEBGL_VERSION=2 \
 -fexceptions \
 --preload-file UnrealTournament/ \
 --preload-file SurrealEngine.pk3 \
+--preload-file test_texture.bmp \
 --bind \
 --use-preload-plugins \
 -Wall \

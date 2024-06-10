@@ -3,7 +3,7 @@
 OpenGL Renderer partially from LupertEverett:  
 https://github.com/LupertEverett/SurrealEngine/tree/openglrenderdevice  
 
-Right now it runs engine, load code, UnrealScript runtime works, but no render image and no sound.
+Right now it runs engine, load code, UnrealScript runtime works, OpenGL renderer WIP, no sound.
   
 # Surreal Engine
 
