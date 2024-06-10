@@ -283,16 +283,21 @@ void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
 			  vec4 Color, vec4 Fog, uint32_t PolyFlags)
 {
 
-GLfloat scale = 0.5;
+GLfloat scale = 0.25;
+
+GLfloat u = GLfloat(U) / 256.f;
+GLfloat v = GLfloat(V) / 256.f;
+GLfloat ul = GLfloat(UL) / 256.f;
+GLfloat vl = GLfloat(VL) / 256.f;
 
 const Vertex vertices[] = {
-	{{xOffset + tileCount * scale, 0, 0}, {0, 1}}, 
-	{{xOffset + tileCount * scale + 1.f * scale, 1.f * scale, 0}, {1, 0}},
-	{{xOffset + tileCount * scale, 1.f * scale, 0}, {0, 0}},
+	{{xOffset + tileCount * scale, 0, 0}, {u, v + vl}}, 
+	{{xOffset + tileCount * scale + 1.f * scale, 1.f * scale, 0}, {u + ul, v}},
+	{{xOffset + tileCount * scale, 1.f * scale, 0}, {u, v}},
 		
-	{{xOffset + tileCount * scale + 1.f * scale, 0, 0}, {1, 1}}, 
-	{{xOffset + tileCount * scale, 0, 0}, {0, 1}},
-	{{xOffset + tileCount * scale + 1.f * scale, 1.f * scale, 0}, {1, 0}}
+	{{xOffset + tileCount * scale + 1.f * scale, 0, 0}, {u + ul, v + vl}}, 
+	{{xOffset + tileCount * scale, 0, 0}, {u, v + vl}},
+	{{xOffset + tileCount * scale + 1.f * scale, 1.f * scale, 0}, {u + ul, v}}
 };
 
 const GLuint indices[] = {
