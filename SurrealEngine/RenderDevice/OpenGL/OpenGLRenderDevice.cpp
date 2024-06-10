@@ -277,33 +277,68 @@ typedef struct {
 	GLfloat TextureUV[2];
 } Vertex;
 
+auto referenceSurface = SDL_LoadBMP("test_texture.bmp"); // must be 24-bit color pallete
+
+
+SDL_Surface* duplicateSurface(SDL_Surface* original) {
+    if (!original) {
+        fprintf(stderr, "Original surface is NULL!\n");
+        return NULL;
+    }
+
+    // Create a new surface with the same width, height, depth, and pixel format
+    SDL_Surface* duplicate = SDL_CreateRGBSurfaceWithFormat(0, 
+                                                            original->w, 
+                                                            original->h, 
+                                                            original->format->BitsPerPixel, 
+                                                            original->format->format);
+    if (!duplicate) {
+        fprintf(stderr, "SDL_CreateRGBSurfaceWithFormat Error: %s\n", SDL_GetError());
+        return NULL;
+    }
+
+    // Blit the original surface onto the new surface
+    if (SDL_BlitSurface(original, NULL, duplicate, NULL) != 0) {
+        fprintf(stderr, "SDL_BlitSurface Error: %s\n", SDL_GetError());
+        SDL_FreeSurface(duplicate);
+        return NULL;
+    }
+
+    return duplicate;
+}
+
 void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
 			  float X, float Y, float XL, float YL, 
 			  float U, float V, float UL, float VL, float Z, 
 			  vec4 Color, vec4 Fog, uint32_t PolyFlags)
 {
 
-GLfloat scale = 0.25;
+auto surface = duplicateSurface(referenceSurface);
 
 GLfloat u = GLfloat(U) / 256.f;
 GLfloat v = GLfloat(V) / 256.f;
 GLfloat ul = GLfloat(UL) / 256.f;
 GLfloat vl = GLfloat(VL) / 256.f;
 
-const Vertex vertices[] = {
-	{{xOffset + tileCount * scale, 0, 0}, {u, v + vl}}, 
-	{{xOffset + tileCount * scale + 1.f * scale, 1.f * scale, 0}, {u + ul, v}},
-	{{xOffset + tileCount * scale, 1.f * scale, 0}, {u, v}},
-		
-	{{xOffset + tileCount * scale + 1.f * scale, 0, 0}, {u + ul, v + vl}}, 
-	{{xOffset + tileCount * scale, 0, 0}, {u, v + vl}},
-	{{xOffset + tileCount * scale + 1.f * scale, 1.f * scale, 0}, {u + ul, v}}
-};
+    GLfloat viewportWidth = 1920;
+    GLfloat viewportHeight = 1080;
 
-const GLuint indices[] = {
-	0, 1, 2,
-	3, 4, 5	
-};
+    GLfloat ndcX = (X / viewportWidth) * 2.0f - 1.0f;
+    GLfloat ndcY = 1.0f - (Y / viewportHeight) * 2.0f;
+    GLfloat ndcXL = (XL / viewportWidth) * 2.0f;
+    GLfloat ndcYL = (YL / viewportHeight) * 2.0f;
+
+    Vertex vertices[] = {
+        {{ndcX, ndcY, Z},          {u, v}},
+        {{ndcX + ndcXL, ndcY, Z},  {u + ul, v}},
+        {{ndcX + ndcXL, ndcY - ndcYL, Z}, {u + ul, v + vl}},
+        {{ndcX, ndcY - ndcYL, Z},  {u, v + vl}}
+    };
+
+    unsigned int indices[] = {
+        0, 1, 2,
+        2, 3, 0
+    };
 
 	GLuint shader_program = Shaders->sceneShader->ProgramID;
 	GLint pos = glGetAttribLocation(shader_program, "vertex");
@@ -339,7 +374,6 @@ const GLuint indices[] = {
     // GLint textureSlot = glGetUniformLocation(shader_program, "texture");
     // glUniform1i(textureSlot, 0);
 
-    auto surface = SDL_LoadBMP("test_texture.bmp"); // must be 24-bit color pallete
 
 	if (surface == nullptr) {
 		std::cout << "CANT LOAD TEXT_TEXTURE!!!" << std::endl;
@@ -402,9 +436,10 @@ const GLuint indices[] = {
 
 					auto pixels = mipmapData;
 
-					auto blueComponent = pixels[i];
+					
+					auto redComponent = pixels[i];
 					auto greenComponent = pixels[i + 1];
-					auto redComponent = pixels[i + 2];
+					auto blueComponent = pixels[i + 2];
 
 					surfacePixels[cursor] = redComponent;
 					surfacePixels[cursor + 1] = greenComponent;
@@ -439,6 +474,10 @@ const GLuint indices[] = {
 	);
 		
 	tileCount += 1;
+
+    glDeleteBuffers(1, &vbo);
+    glDeleteBuffers(1, &indexBuffer);
+    glDeleteTextures(1, &textureBinding);
 }
 
 void OpenGLRenderDevice::Draw3DLine(FSceneNode* Frame, vec4 Color, vec3 P1, vec3 P2)
