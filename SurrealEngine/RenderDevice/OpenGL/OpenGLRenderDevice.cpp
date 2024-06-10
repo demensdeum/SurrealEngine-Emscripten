@@ -77,55 +77,56 @@ void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
 			  float U, float V, float UL, float VL, float Z, 
 			  vec4 Color, vec4 Fog, uint32_t PolyFlags)
 {
+typedef struct {
+    GLfloat Position[3];
+} Vertex;
 
-        GLuint shader_program = Shaders->sceneShader->ProgramID;
-        GLint vertexSlot = glGetAttribLocation(shader_program, "vertex");
+int tileCount = 0;
+GLfloat scale = 0.075;
 
-	    GLsizei indicesCount = 0;
-	    GLsizeiptr verticesBufferSize, indicesBufferSize;
-	    GLuint textureBinding = 0;
+const Vertex vertices[] = {
+    {-1.0f, 1.0f, 0.0f},
+    {1.f, 1.0f, 0.0f},
+    {-1.0f, -1.0f, 0.0f},
+	{1.0f, -1.0f, 0.0f}
+};
 
-		GLfloat scale = 0.075;
+const GLuint indices[] = {
+	0, 1, 2,
+	3, 1, 2	
+};
 
-		tileCount += 1;
+	GLuint shader_program = Shaders->sceneShader->ProgramID;
+	GLint pos = glGetAttribLocation(shader_program, "vertex");
 
-		GLfloat vertices[] = {
-			(GLfloat)-0.8 + tileCount*scale,0, 0, 
-			(GLfloat)-0.8 + tileCount*scale + (GLfloat)0.5 * scale,1*scale, 0,
-			(GLfloat)-0.8 + tileCount*scale, 1 * scale, 0,
-			
-			(GLfloat)-0.8 + tileCount*scale + (GLfloat)0.5 * scale, 0, 0, 
-			(GLfloat)-0.8 + tileCount*scale, 0, 0,
-			(GLfloat)-0.8 + tileCount*scale + (GLfloat)0.5 * scale,1*scale, 0
-		};
-		GLint  vertexCoordsCount = 6;
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
 
-		GLuint indices[] = {
-			0,1,2
-		};
-		indicesCount = 3;
+	glViewport(0, 0, 1920, 1080);
 
-
-    GLuint vbo;
-    GLint pos;
-
-	pos = glGetAttribLocation(shader_program, "vertex");
-
-    //glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glViewport(0, 0, 1920, 1080);
+	GLuint vbo, indexBuffer;
 
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof (vertices), vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, 0, (GLvoid*) 0);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glGenBuffers(1, &indexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
     glEnableVertexAttribArray(pos);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    //glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(shader_program);
-    glDrawArrays(GL_TRIANGLES, 0, vertexCoordsCount);
 
-    glDeleteBuffers(1, &vbo);
+    glDrawElements(
+		GL_TRIANGLES, 
+		sizeof(indices) / sizeof(indices[0]),
+        GL_UNSIGNED_INT, 
+		0
+	);
+		
+	tileCount += 1;
 }
 
 void OpenGLRenderDevice::Draw3DLine(FSceneNode* Frame, vec4 Color, vec3 P1, vec3 P2)
@@ -191,31 +192,3 @@ void OpenGLRenderDevice::UpdateTextureRect(FTextureInfo& Info, int U, int V, int
 {
 	std::cout << "OpenGLRenderDevice::UpdateTextureRect" << std::endl;
 }
-
-// void OpenGLRenderDevice::DrawScene()
-// {
-// 	std::cout << "OpenGLRenderDevice::DrawScene()" << std::endl;
-
-// 	while (!CommandBuffer.empty())
-// 	{
-// 		Draw(CommandBuffer.front());
-// 		CommandBuffer.pop_front();
-// 	}
-
-// 	glFinish();
-
-// 	if (SDL2Window::currentWindow == nullptr) {
-// 		std::cout << "SDL2Window::currentWindow: NULL!!!!" << std::endl;
-// 		exit(1);
-// 	}
-// 	SDL_GL_SwapWindow(SDL2Window::currentWindow);	
-// }
-
-// void OpenGLRenderDevice::Draw(GLDrawCommand& drawCommand)
-// {
-// 	std::cout << "OpenGLRenderDevice::Draw" << std::endl;
-// 	drawCommand.va->Bind();
-// 	drawCommand.ib->Bind();
-// 	drawCommand.shader->Bind();
-// 	glDrawElements(GL_TRIANGLE_STRIP, drawCommand.ib->IndicesCount(), GL_UNSIGNED_INT, drawCommand.ib->IndicesData());
-// }
