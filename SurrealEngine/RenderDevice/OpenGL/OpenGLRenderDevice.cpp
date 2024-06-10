@@ -81,19 +81,21 @@ typedef struct {
     GLfloat Position[3];
 } Vertex;
 
-int tileCount = 0;
 GLfloat scale = 0.075;
 
-const Vertex vertices[] = {
-    {-1.0f, 1.0f, 0.0f},
-    {1.f, 1.0f, 0.0f},
-    {-1.0f, -1.0f, 0.0f},
-	{1.0f, -1.0f, 0.0f}
+const GLfloat vertices[] = {
+	(GLfloat)-0.8 + tileCount * scale,0, 0, 
+	(GLfloat)-0.8 + tileCount * scale + (GLfloat)0.5 * scale, 1*scale, 0,
+	(GLfloat)-0.8 + tileCount * scale, 1 * scale, 0,
+		
+	(GLfloat)-0.8 + tileCount * scale + (GLfloat)0.5 * scale, 0, 0, 
+	(GLfloat)-0.8 + tileCount * scale, 0, 0,
+	(GLfloat)-0.8 + tileCount * scale + (GLfloat)0.5 * scale, 1*scale, 0
 };
 
 const GLuint indices[] = {
 	0, 1, 2,
-	3, 1, 2	
+	3, 4, 5	
 };
 
 	GLuint shader_program = Shaders->sceneShader->ProgramID;
