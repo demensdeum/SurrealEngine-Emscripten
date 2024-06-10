@@ -10,7 +10,7 @@ class GLTextureManager
 public:
 	~GLTextureManager();
 	void ClearTextures();
-	GLTexture GetTexture(FTextureInfo* info);
+	GLTexture *GetTexture(FTextureInfo* info);
 private:
-	std::unordered_map<FTextureInfo*, GLTexture> Textures;
+	std::unordered_map<FTextureInfo*, GLTexture*> Textures;
 };

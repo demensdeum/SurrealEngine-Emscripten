@@ -83,16 +83,16 @@ void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
 			  vec4 Color, vec4 Fog, uint32_t PolyFlags)
 {
 
-GLfloat scale = 0.075;
+GLfloat scale = 0.5;
 
 const Vertex vertices[] = {
 	{{-0.8f + tileCount * scale, 0, 0}, {0, 0}}, 
 	{{-0.8f + tileCount * scale + 0.5f * scale, 1.f * scale, 0}, {1, 0}},
-	{{-0.8f + tileCount * scale, 1.f * scale, 0}, {1, 1}},
+	{{-0.8f + tileCount * scale, 1.f * scale, 0}, {0, 1}},
 		
-	{{-0.8f + tileCount * scale + 0.5f * scale, 0, 0}, {0, 1}}, 
-	{{-0.8f + tileCount * scale, 0, 0}, {1, 1}},
-	{{-0.8f + tileCount * scale + 0.5f * scale, 1.f * scale, 0}, {1, 0}}
+	{{-0.8f + tileCount * scale + 0.5f * scale, 0, 0}, {1, 0}}, 
+	{{-0.8f + tileCount * scale, 0, 0}, {0, 0}},
+	{{-0.8f + tileCount * scale + 0.5f * scale, 1.f * scale, 0}, {1, 1}}
 };
 
 const GLuint indices[] = {
@@ -123,7 +123,16 @@ const GLuint indices[] = {
 
     glUseProgram(shader_program);
 
-	GLTexture tex = Textures->GetTexture(&Info);
+	glActiveTexture(GL_TEXTURE0);
+
+    GLint uvSlot = glGetAttribLocation(shader_program, "uvIn");
+    glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) (sizeof(Vertex::Position)));
+    glEnableVertexAttribArray(uvSlot);
+
+	auto texture = Textures->GetTexture(&Info);	
+	texture->Bind();
+    GLint textureSlot = glGetUniformLocation(shader_program, "texture");
+    glUniform1i(textureSlot, 0);
 
     glDrawElements(
 		GL_TRIANGLES, 
