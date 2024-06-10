@@ -86,13 +86,13 @@ void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
 GLfloat scale = 0.075;
 
 const Vertex vertices[] = {
-	{{(GLfloat)-0.8 + tileCount * scale, 0, 0},{0, 0}}, 
-	{{(GLfloat)-0.8 + tileCount * scale + (GLfloat)0.5 * scale, 1*scale, 0}},
-	{{(GLfloat)-0.8 + tileCount * scale, 1 * scale, 0}},
+	{{-0.8f + tileCount * scale, 0, 0}, {0, 0}}, 
+	{{-0.8f + tileCount * scale + 0.5f * scale, 1.f * scale, 0}, {1, 0}},
+	{{-0.8f + tileCount * scale, 1.f * scale, 0}, {1, 1}},
 		
-	{{(GLfloat)-0.8 + tileCount * scale + (GLfloat)0.5 * scale, 0, 0}}, 
-	{{(GLfloat)-0.8 + tileCount * scale, 0, 0}},
-	{{(GLfloat)-0.8 + tileCount * scale + (GLfloat)0.5 * scale, 1*scale, 0}}
+	{{-0.8f + tileCount * scale + 0.5f * scale, 0, 0}, {0, 1}}, 
+	{{-0.8f + tileCount * scale, 0, 0}, {1, 1}},
+	{{-0.8f + tileCount * scale + 0.5f * scale, 1.f * scale, 0}, {1, 0}}
 };
 
 const GLuint indices[] = {
