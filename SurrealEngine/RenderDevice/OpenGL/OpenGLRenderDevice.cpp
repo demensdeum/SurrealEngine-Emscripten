@@ -72,25 +72,27 @@ void OpenGLRenderDevice::DrawGouraudPolygon(FSceneNode* Frame, FTextureInfo& Inf
 	std::cout << "OpenGLRenderDevice::DrawGouraudPolygon(FSceneNode* Frame, FTextureInfo& Info, const GouraudVertex* Pts, int NumPts, uint32_t PolyFlags)" << std::endl;
 }
 
+typedef struct {
+    GLfloat Position[3];
+	GLfloat TextureUV[2];
+} Vertex;
+
 void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
 			  float X, float Y, float XL, float YL, 
 			  float U, float V, float UL, float VL, float Z, 
 			  vec4 Color, vec4 Fog, uint32_t PolyFlags)
 {
-typedef struct {
-    GLfloat Position[3];
-} Vertex;
 
 GLfloat scale = 0.075;
 
-const GLfloat vertices[] = {
-	(GLfloat)-0.8 + tileCount * scale,0, 0, 
-	(GLfloat)-0.8 + tileCount * scale + (GLfloat)0.5 * scale, 1*scale, 0,
-	(GLfloat)-0.8 + tileCount * scale, 1 * scale, 0,
+const Vertex vertices[] = {
+	{{(GLfloat)-0.8 + tileCount * scale, 0, 0},{0, 0}}, 
+	{{(GLfloat)-0.8 + tileCount * scale + (GLfloat)0.5 * scale, 1*scale, 0}},
+	{{(GLfloat)-0.8 + tileCount * scale, 1 * scale, 0}},
 		
-	(GLfloat)-0.8 + tileCount * scale + (GLfloat)0.5 * scale, 0, 0, 
-	(GLfloat)-0.8 + tileCount * scale, 0, 0,
-	(GLfloat)-0.8 + tileCount * scale + (GLfloat)0.5 * scale, 1*scale, 0
+	{{(GLfloat)-0.8 + tileCount * scale + (GLfloat)0.5 * scale, 0, 0}}, 
+	{{(GLfloat)-0.8 + tileCount * scale, 0, 0}},
+	{{(GLfloat)-0.8 + tileCount * scale + (GLfloat)0.5 * scale, 1*scale, 0}}
 };
 
 const GLuint indices[] = {
@@ -120,6 +122,8 @@ const GLuint indices[] = {
     glEnableVertexAttribArray(pos);
 
     glUseProgram(shader_program);
+
+	GLTexture tex = Textures->GetTexture(&Info);
 
     glDrawElements(
 		GL_TRIANGLES, 
