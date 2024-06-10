@@ -129,8 +129,48 @@ const GLuint indices[] = {
     glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) (sizeof(Vertex::Position)));
     glEnableVertexAttribArray(uvSlot);
 
-	auto texture = Textures->GetTexture(&Info);	
-	texture->Bind();
+	// auto texture = Textures->GetTexture(&Info);	
+	// texture->Bind();
+    // GLint textureSlot = glGetUniformLocation(shader_program, "texture");
+    // glUniform1i(textureSlot, 0);
+
+    auto surface = SDL_LoadBMP("test_texture.bmp"); // must be 24-bit color pallete
+
+	if (surface == nullptr) {
+		std::cout << "CANT LOAD TEXT_TEXTURE!!!" << std::endl;
+		exit(1);
+	}
+
+    auto surfaceLength = surface->w * surface->h * 3;
+
+    // swap bgr -> rgb
+
+    for (auto i = 0; i < surfaceLength; i += 3) {
+
+        auto pixels = (Uint8 *) surface->pixels;
+
+        auto blueComponent = pixels[i];
+        auto greenComponent = pixels[i + 1];
+        auto redComponent = pixels[i + 2];
+
+        pixels[i] = redComponent;
+        pixels[i + 1] = greenComponent;
+        pixels[i + 2] = blueComponent;
+
+    }
+
+    auto palleteMode = GL_RGB;
+
+    GLuint textureBinding;
+    glGenTextures(1, &textureBinding);
+    glBindTexture(GL_TEXTURE_2D, textureBinding);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
+    glActiveTexture(GL_TEXTURE0);
+
+    SDL_FreeSurface(surface);
+    //glEnable(GL_DEPTH_TEST);
+    //glEnable(GL_CULL_FACE);
     GLint textureSlot = glGetUniformLocation(shader_program, "texture");
     glUniform1i(textureSlot, 0);
 

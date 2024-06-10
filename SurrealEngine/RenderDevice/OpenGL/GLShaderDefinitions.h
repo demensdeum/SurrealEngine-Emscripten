@@ -21,7 +21,7 @@ const std::string fragmentShaderCode =
     varying mediump vec2 uvOut;
     uniform sampler2D texture;
     void main() {
-        gl_FragColor = vec4(uvOut[1], uvOut[0], 0.0, 1.0);
-        //gl_FragColor = texture2D(texture, uvOut);
+        //gl_FragColor = vec4(uvOut[1], uvOut[0], 0.0, 1.0);
+        gl_FragColor = texture2D(texture, uvOut);
     })";
     

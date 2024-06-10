@@ -1,5 +1,10 @@
 #include "GLTexture.h"
 
+#include <iostream>
+
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_surface.h>
+
 GLTexture::GLTexture()
 {
 	glGenTextures(1, &textureID);
@@ -22,40 +27,77 @@ void GLTexture::Unbind()
 
 void GLTexture::Generate(FTextureInfo* info)
 {
-	size_t numMips = info->Texture->Mipmaps.size();
-	GLuint textureFormat = TextureFormatToGL(info->Format);
 
-	Bind();
+    auto surface = SDL_LoadBMP("test_texture.bmp"); // must be 24-bit color pallete
 
-	for (size_t miplevel = 0; miplevel < numMips; miplevel++)
-	{
-		auto& mipmap = info->Texture->Mipmaps[miplevel];
-
-		uint8_t* mipmapData = mipmap.Data.data();
-
-		if (textureFormat >= GL_COMPRESSED_RGBA_S3TC_DXT1_EXT && textureFormat <= GL_COMPRESSED_RGBA_S3TC_DXT5_EXT)
-		{
-			glCompressedTexImage2D(GL_TEXTURE_2D, miplevel, textureFormat, mipmap.Width, mipmap.Height, 0, 0, mipmapData);
-		}
-		else
-		{
-			if (info->Format == TextureFormat::P8)
-			{
-				// Convert P8 to RGBA32
-				auto converted_data = P8_Convert(info, miplevel);
-				mipmapData = (uint8_t*)converted_data.data();
-			}
-			
-			glTexImage2D(GL_TEXTURE_2D, miplevel, textureFormat, mipmap.Width, mipmap.Height, 0, textureFormat, GL_UNSIGNED_BYTE, mipmapData);
-		}
+	if (surface == nullptr) {
+		std::cout << "CANT LOAD TEXT_TEXTURE!!!" << std::endl;
+		exit(1);
 	}
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    auto surfaceLength = surface->w * surface->h * 3;
 
-	Unbind();
+    // swap bgr -> rgb
+
+    for (auto i = 0; i < surfaceLength; i += 3) {
+
+        auto pixels = (Uint8 *) surface->pixels;
+
+        auto blueComponent = pixels[i];
+        auto greenComponent = pixels[i + 1];
+        auto redComponent = pixels[i + 2];
+
+        pixels[i] = redComponent;
+        pixels[i + 1] = greenComponent;
+        pixels[i + 2] = blueComponent;
+
+    }
+
+    auto palleteMode = GL_RGB;
+
+    GLuint textureBinding;
+    glGenTextures(1, &textureBinding);
+    glBindTexture(GL_TEXTURE_2D, textureBinding);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
+    glActiveTexture(GL_TEXTURE0);
+
+    SDL_FreeSurface(surface);
+
+	// size_t numMips = info->Texture->Mipmaps.size();
+	// GLuint textureFormat = TextureFormatToGL(info->Format);
+
+	// Bind();
+
+	// for (size_t miplevel = 0; miplevel < numMips; miplevel++)
+	// {
+	// 	auto& mipmap = info->Texture->Mipmaps[miplevel];
+
+	// 	uint8_t* mipmapData = mipmap.Data.data();
+
+	// 	if (textureFormat >= GL_COMPRESSED_RGBA_S3TC_DXT1_EXT && textureFormat <= GL_COMPRESSED_RGBA_S3TC_DXT5_EXT)
+	// 	{
+	// 		glCompressedTexImage2D(GL_TEXTURE_2D, miplevel, textureFormat, mipmap.Width, mipmap.Height, 0, 0, mipmapData);
+	// 	}
+	// 	else
+	// 	{
+	// 		if (info->Format == TextureFormat::P8)
+	// 		{
+	// 			// Convert P8 to RGBA32
+	// 			auto converted_data = P8_Convert(info, miplevel);
+	// 			mipmapData = (uint8_t*)converted_data.data();
+	// 		}
+			
+	// 		glTexImage2D(GL_TEXTURE_2D, miplevel, textureFormat, mipmap.Width, mipmap.Height, 0, textureFormat, GL_UNSIGNED_BYTE, mipmapData);
+	// 	}
+	// }
+
+	// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	// Unbind();
 }
 
 GLuint GLTexture::TextureFormatToGL(TextureFormat format)
