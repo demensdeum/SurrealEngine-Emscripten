@@ -299,6 +299,18 @@ Vertex Vertexxx(GLfloat x, GLfloat y, GLfloat z)
 	return vertex;
 }
 
+glm::mat4 fillGLMMat4(const mat4 &source) {
+    glm::mat4 result;
+
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            result[j][i] = source.matrix[i * 4 + j];
+        }
+    }
+
+    return result;
+}
+
 void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Surface, FSurfaceFacet& Facet)
 {
 	std::cout << "OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Surface, FSurfaceFacet& Facet)" << std::endl;
@@ -373,18 +385,24 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Sur
     glUseProgram(shader_program);
 
 	//glm::mat4 projectionMatrix = glm::mat4(1);
-    glm::mat4 projectionMatrix = glm::perspective(45.0f, float(float(width) / float(height)), 0.0001f, 800.0f);
-
+    //glm::mat4 projectionMatrix = glm::perspective(45.0f, float(float(width) / float(height)), 0.0001f, 800.0f);
+	glm::mat4 projectionMatrix = fillGLMMat4(Frame->Projection);
+	auto projectionMatrixPtr = glm::value_ptr(projectionMatrix);
     auto projectionMatrixUniform = glGetUniformLocation(shader_program, "projectionMatrix");
-    glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
+    glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, projectionMatrixPtr);
 
 	auto modelMatrix = glm::mat4(1);
+	//glm::mat4 modelMatrix = fillGLMMat4(Frame->ObjectToWorld);
+	auto modelMatrixPtr = glm::value_ptr(modelMatrix);
 	auto modelMatrixUniform = glGetUniformLocation(shader_program, "modelMatrix");
-    glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelMatrix));
+    glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, modelMatrixPtr);
 
-    auto viewMatrix = glm::mat4(1);
+
+	auto viewMatrix = glm::mat4(1);
+    //auto viewMatrix = fillGLMMat4(Frame->WorldToView);
+	auto viewMatrixPtr = glm::value_ptr(viewMatrix);
     auto viewMatrixUniform = glGetUniformLocation(shader_program, "viewMatrix");
-    glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+    glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, viewMatrixPtr);
 
 	glActiveTexture(GL_TEXTURE0);
 
