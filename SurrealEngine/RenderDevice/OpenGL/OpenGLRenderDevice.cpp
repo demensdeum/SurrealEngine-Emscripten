@@ -330,15 +330,15 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Sur
 
 	auto surface = duplicateSurface(referenceSurface);
 
-	// verticesVector.clear();
-	// verticesVector.push_back(Vertexxx(-1, -1, 0));
-	// verticesVector.push_back(Vertexxx(0, 1, 0));
-	// verticesVector.push_back(Vertexxx(1, -1, 0));
+	verticesVector.clear();
+	verticesVector.push_back(Vertexxx(-1, -1, -3));
+	verticesVector.push_back(Vertexxx(0, 1, -3));
+	verticesVector.push_back(Vertexxx(1, -1, -3));
 
-	// indicesVector.clear();
-	// indicesVector.push_back(0);
-	// indicesVector.push_back(1);
-	// indicesVector.push_back(2);
+	indicesVector.clear();
+	indicesVector.push_back(0);
+	indicesVector.push_back(1);
+	indicesVector.push_back(2);
 
     Vertex *vertices = verticesVector.data();
     GLuint *indices = indicesVector.data();
@@ -353,7 +353,9 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Sur
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
 
-	glViewport(0, 0, 1920, 1080);
+	float width = 1920;
+	float height = 1080;
+	glViewport(0, 0, width, height);
 
 	GLuint vbo, indexBuffer;
 
@@ -369,6 +371,20 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Sur
     glEnableVertexAttribArray(pos);
 
     glUseProgram(shader_program);
+
+	//glm::mat4 projectionMatrix = glm::mat4(1);
+    glm::mat4 projectionMatrix = glm::perspective(45.0f, float(float(width) / float(height)), 0.0001f, 800.0f);
+
+    auto projectionMatrixUniform = glGetUniformLocation(shader_program, "projectionMatrix");
+    glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
+
+	auto modelMatrix = glm::mat4(1);
+	auto modelMatrixUniform = glGetUniformLocation(shader_program, "modelMatrix");
+    glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelMatrix));
+
+    auto viewMatrix = glm::mat4(1);
+    auto viewMatrixUniform = glGetUniformLocation(shader_program, "viewMatrix");
+    glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, glm::value_ptr(viewMatrix));
 
 	glActiveTexture(GL_TEXTURE0);
 

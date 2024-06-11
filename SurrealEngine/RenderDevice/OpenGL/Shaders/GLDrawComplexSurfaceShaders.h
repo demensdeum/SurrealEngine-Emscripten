@@ -7,8 +7,11 @@ const std::string drawComplexSurfaceVertexShadersCode =
 attribute vec4 vertex;
 attribute vec2 uvIn;
 varying vec2 uvOut;
+uniform mat4 projectionMatrix;
+uniform mat4 viewMatrix;
+uniform mat4 modelMatrix;
 void main() {
-    gl_Position = vertex;
+    gl_Position = projectionMatrix * viewMatrix * modelMatrix * vertex;
     uvOut = uvIn;
 })";
 
