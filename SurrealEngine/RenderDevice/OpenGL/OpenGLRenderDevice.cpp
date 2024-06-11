@@ -330,15 +330,15 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Sur
 
 	auto surface = duplicateSurface(referenceSurface);
 
-	verticesVector.clear();
-	verticesVector.push_back(Vertexxx(-1, -1, 0));
-	verticesVector.push_back(Vertexxx(0, 1, 0));
-	verticesVector.push_back(Vertexxx(1, -1, 0));
+	// verticesVector.clear();
+	// verticesVector.push_back(Vertexxx(-1, -1, 0));
+	// verticesVector.push_back(Vertexxx(0, 1, 0));
+	// verticesVector.push_back(Vertexxx(1, -1, 0));
 
-	indicesVector.clear();
-	indicesVector.push_back(0);
-	indicesVector.push_back(1);
-	indicesVector.push_back(2);
+	// indicesVector.clear();
+	// indicesVector.push_back(0);
+	// indicesVector.push_back(1);
+	// indicesVector.push_back(2);
 
     Vertex *vertices = verticesVector.data();
     GLuint *indices = indicesVector.data();

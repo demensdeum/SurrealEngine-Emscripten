@@ -7,7 +7,7 @@
 
 GLShaderManager::GLShaderManager()
 {
-	LoadShaderCode(DrawComplexSurfaceShader, drawTileVertexShaderCode, drawTileFragmentShaderCode, 0);
+	LoadShaderCode(DrawComplexSurfaceShader, drawComplexSurfaceVertexShadersCode, drawComplexSurfaceFragmentShadersCode, 0);
 	LoadShaderCode(DrawTileShader, drawTileVertexShaderCode, drawTileFragmentShaderCode, 0);
 }
 
