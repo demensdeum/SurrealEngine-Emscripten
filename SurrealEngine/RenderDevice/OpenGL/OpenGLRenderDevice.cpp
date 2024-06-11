@@ -296,10 +296,46 @@ Vertex Vertexxx(GLfloat x, GLfloat y, GLfloat z)
 	vertex.Position[1] = y;
 	vertex.Position[2] = z;
 
+	vertex.TextureUV[0] = 0;
+	vertex.TextureUV[1] = 1;
+
 	return vertex;
 }
 
-glm::mat4 fillGLMMat4(const mat4 &source) {
+// glm::mat4 fillGLMMat4(const mat4 &source) {
+//     glm::mat4 result;
+
+//     for (int i = 0; i < 4; ++i) {
+//         for (int j = 0; j < 4; ++j) {
+//             result[j][i] = source.matrix[i * 4 + j];
+//         }
+//     }
+
+//     return result;
+// }
+
+// void printTransform(const glm::mat4 &m) {
+//     // Extract translation
+//     glm::vec3 translation = glm::vec3(m[3][0], m[3][1], m[3][2]);
+    
+//     // Extract rotation
+//     glm::vec3 eulerAngles = glm::eulerAngles(glm::quat_cast(m));
+    
+//     // Convert rotation from radians to degrees
+//     eulerAngles = glm::degrees(eulerAngles);
+
+//     std::cout << "Position (x, y, z): (" 
+//               << translation.x << ", " 
+//               << translation.y << ", " 
+//               << translation.z << ")\n";
+
+//     std::cout << "Rotation (x, y, z): (" 
+//               << eulerAngles.x << ", " 
+//               << eulerAngles.y << ", " 
+//               << eulerAngles.z << ")\n";
+// }
+
+glm::mat4 filllGLMMat4(const mat4 &source) {
     glm::mat4 result;
 
     for (int i = 0; i < 4; ++i) {
@@ -386,20 +422,21 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Sur
 
 	//glm::mat4 projectionMatrix = glm::mat4(1);
     //glm::mat4 projectionMatrix = glm::perspective(45.0f, float(float(width) / float(height)), 0.0001f, 800.0f);
-	glm::mat4 projectionMatrix = fillGLMMat4(Frame->Projection);
+	glm::mat4 projectionMatrix = filllGLMMat4(Frame->Projection);
 	auto projectionMatrixPtr = glm::value_ptr(projectionMatrix);
     auto projectionMatrixUniform = glGetUniformLocation(shader_program, "projectionMatrix");
     glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, projectionMatrixPtr);
 
-	auto modelMatrix = glm::mat4(1);
-	//glm::mat4 modelMatrix = fillGLMMat4(Frame->ObjectToWorld);
+	//auto modelMatrix = glm::mat4(1);
+	glm::mat4 modelMatrix = filllGLMMat4(Frame->ObjectToWorld);
 	auto modelMatrixPtr = glm::value_ptr(modelMatrix);
 	auto modelMatrixUniform = glGetUniformLocation(shader_program, "modelMatrix");
     glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, modelMatrixPtr);
 
+	//printTransform(modelMatrix);
 
-	auto viewMatrix = glm::mat4(1);
-    //auto viewMatrix = fillGLMMat4(Frame->WorldToView);
+	//auto viewMatrix = glm::mat4(1);
+    auto viewMatrix = filllGLMMat4(Frame->WorldToView);
 	auto viewMatrixPtr = glm::value_ptr(viewMatrix);
     auto viewMatrixUniform = glGetUniformLocation(shader_program, "viewMatrix");
     glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, viewMatrixPtr);
@@ -684,6 +721,9 @@ void OpenGLRenderDevice::SetSceneNode(FSceneNode* Frame)
 	CurrentFrame = Frame;
 
 	Aspect = Frame->FY / Frame->FX;
+
+	// printTransform(filllGLMMat4(Frame->ObjectToWorld));
+	// printTransform(filllGLMMat4(Frame->WorldToView));
 
 	//glViewport(Frame->X, Frame->Y, Frame->XB, Frame->YB);
 }

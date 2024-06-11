@@ -6,6 +6,44 @@
 #include "VM/ScriptCall.h"
 #include "Engine.h"
 
+#include <iostream>
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+glm::mat4 fillGLMMat4(const mat4 &source) {
+    glm::mat4 result;
+
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            result[j][i] = source.matrix[i * 4 + j];
+        }
+    }
+
+    return result;
+}
+
+void printTransform(const glm::mat4 &m) {
+    // Extract translation
+    glm::vec3 translation = glm::vec3(m[3][0], m[3][1], m[3][2]);
+    
+    // Extract rotation
+    glm::vec3 eulerAngles = glm::eulerAngles(glm::quat_cast(m));
+    
+    // Convert rotation from radians to degrees
+    eulerAngles = glm::degrees(eulerAngles);
+
+    std::cout << "Position (x, y, z): (" 
+              << translation.x << ", " 
+              << translation.y << ", " 
+              << translation.z << ")\n";
+
+    std::cout << "Rotation (x, y, z): (" 
+              << eulerAngles.x << ", " 
+              << eulerAngles.y << ", " 
+              << eulerAngles.z << ")\n";
+}
+
 void RenderSubsystem::DrawScene()
 {
 	Scene.Clipper.numDrawSpans = 0;
@@ -45,6 +83,9 @@ void RenderSubsystem::DrawScene()
 
 void RenderSubsystem::DrawFrame(const vec3& location, const mat4& worldToView)
 {
+	printTransform(fillGLMMat4(worldToView));
+
+
 	SetupSceneFrame(worldToView);
 	Scene.Clipper.Setup(Scene.Frame.Projection * Scene.Frame.WorldToView * Scene.Frame.ObjectToWorld);
 	Scene.ViewLocation = vec4(location, 1.0f);
