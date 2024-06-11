@@ -22,7 +22,12 @@ void GLShader::Unbind()
 	glUseProgram(0);
 }
 
-void GLShader::Compile(const char* vertexCode, const char* fragmentCode, const char* geometryCode, int debug_index)
+void GLShader::Compile(
+		const std::string vertexCode, 
+		const std::string fragmentCode, 
+		const std::string geometryCode, 
+		int debug_index
+	)
 {
 	std::cout << "GLShader::Compile " << debug_index << std::endl;
 	GLuint VertexShaderID, FragmentShaderID, GeometryShaderID;
@@ -30,28 +35,31 @@ void GLShader::Compile(const char* vertexCode, const char* fragmentCode, const c
 	std::cout << "69GLShader::Compile " << debug_index << std::endl;
 	VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
 	std::cout << "1GLShader::Compile " << debug_index << std::endl;
-	glShaderSource(VertexShaderID, 1, &vertexCode, NULL);
+	auto vc = vertexCode.c_str();
+	glShaderSource(VertexShaderID, 1, &vc, NULL);
 	std::cout << "2GLShader::Compile " << debug_index << std::endl;
 	glCompileShader(VertexShaderID);
 	std::cout << "3GLShader::Compile " << debug_index << std::endl;
 	CheckCompileErrors(VertexShaderID, "Vertex", 1);
 
 	FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(FragmentShaderID, 1, &fragmentCode, NULL);
+	auto fc = fragmentCode.c_str();
+	glShaderSource(FragmentShaderID, 1, &fc, NULL);
 	glCompileShader(FragmentShaderID);
 	CheckCompileErrors(FragmentShaderID, "Fragment", 2);
 
-	if (geometryCode)
+	if (!geometryCode.empty())
 	{
 		GeometryShaderID = glCreateShader(GL_GEOMETRY_SHADER);
-		glShaderSource(GeometryShaderID, 1, &geometryCode, NULL);
+		auto gc = geometryCode.c_str();
+		glShaderSource(GeometryShaderID, 1, &gc, NULL);
 		CheckCompileErrors(GeometryShaderID, "Geometry", 3);
 	}
 
 	ProgramID = glCreateProgram();
 	glAttachShader(ProgramID, VertexShaderID);
 	glAttachShader(ProgramID, FragmentShaderID);
-	if (geometryCode)
+	if (!geometryCode.empty())
 		glAttachShader(ProgramID, GeometryShaderID);
 	glLinkProgram(ProgramID);
 	CheckLinkErrors();
@@ -59,7 +67,7 @@ void GLShader::Compile(const char* vertexCode, const char* fragmentCode, const c
 	// Shaders can be freely deleted now
 	glDeleteShader(VertexShaderID);
 	glDeleteShader(FragmentShaderID);
-	if (geometryCode)
+	if (!geometryCode.empty())
 		glDeleteShader(GeometryShaderID);
 }
 
@@ -98,6 +106,9 @@ void GLShader::CheckCompileErrors(GLuint Object, const std::string ObjectType, i
 		std::cout << "Error while compiling: " << ObjectType << " shader: " << infoLog << std::endl;
 
 		throw std::runtime_error("Error while compiling " + ObjectType + " shader: " + infoLog);
+	}
+	else {
+		std::cout << "Success shader compile" << std::endl;
 	}
 }
 

@@ -1,23 +1,39 @@
 #include "GLShaderManager.h"
 
-#include "GLShaderDefinitions.h"
 #include <iostream>
+
+#include "Shaders/GLDrawTileShaders.h"
+#include "Shaders/GLDrawComplexSurfaceShaders.h"
 
 GLShaderManager::GLShaderManager()
 {
-	sceneShader = std::make_unique<GLShader>();
-
-	LoadShaderCode(vertexShaderCode, fragmentShaderCode, 0);
+	LoadShaderCode(DrawComplexSurfaceShader, drawTileVertexShaderCode, drawTileFragmentShaderCode, 0);
+	LoadShaderCode(DrawTileShader, drawTileVertexShaderCode, drawTileFragmentShaderCode, 0);
 }
 
-void GLShaderManager::LoadShaderCode(const std::string& vertexShaderCode, const std::string& fragmentShaderCode, int debug_index)
+GLShaderManager::~GLShaderManager()
+{
+	flush();
+}
+
+void GLShaderManager::LoadShaderCode(
+	GLShaderID shaderID,
+	const std::string& vertexShaderCode,
+	const std::string& fragmentShaderCode, 
+	int debug_index
+)
 {
 	std::cout << "LoadShaderCode " << debug_index << std::endl;
-	sceneShader->Compile(vertexShaderCode.c_str(), fragmentShaderCode.c_str(), nullptr, 0);
 
-	// Set the common Uniforms
-	//sceneShader->SetUniformSampler2D("texture", TEXTURE_LAYOUT_LOCATION);
-	//sceneShader->SetUniformSampler2D("texLightmap", TEXTURE_LIGHTMAP_LAYOUT_LOCATION);
-	//sceneShader->SetUniformSampler2D("texMacro", TEXTURE_MACRO_LAYOUT_LOCATION);
-	//sceneShader->SetUniformSampler2D("texDetail", TEXTURE_DETAIL_LAYOUT_LOCATION);
+	auto shader = new GLShader();
+	shader->Compile(vertexShaderCode, fragmentShaderCode, "", 0);
+
+	shaders[shaderID] = shader;
+}
+
+void GLShaderManager::flush()
+{
+	for (const auto& pair : shaders) {
+		delete pair.second;
+	}
 }

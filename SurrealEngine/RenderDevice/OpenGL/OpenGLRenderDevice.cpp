@@ -13,9 +13,40 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-float tileCount = 0;
+auto referenceSurface = SDL_LoadBMP("test_texture.bmp"); // must be 24-bit color pallete
+
+
+SDL_Surface* duplicateSurface(SDL_Surface* original) {
+    if (!original) {
+        fprintf(stderr, "Original surface is NULL!\n");
+        return NULL;
+    }
+
+    SDL_Surface* duplicate = SDL_CreateRGBSurfaceWithFormat(0, 
+                                                            original->w, 
+                                                            original->h, 
+                                                            original->format->BitsPerPixel, 
+                                                            original->format->format);
+    if (!duplicate) {
+        fprintf(stderr, "SDL_CreateRGBSurfaceWithFormat Error: %s\n", SDL_GetError());
+        return NULL;
+    }
+
+    if (SDL_BlitSurface(original, NULL, duplicate, NULL) != 0) {
+        fprintf(stderr, "SDL_BlitSurface Error: %s\n", SDL_GetError());
+        SDL_FreeSurface(duplicate);
+        return NULL;
+    }
+
+    return duplicate;
+}
 
 GLfloat xOffset = -0.8f;
+
+typedef struct {
+    GLfloat Position[3];
+	GLfloat TextureUV[2];
+} Vertex;
 
 GLuint TextureFormatToGL(TextureFormat format)
 {
@@ -211,9 +242,6 @@ std::vector<FColor> P8_Convert(FTextureInfo* info, size_t mipmapLevel)
 	return result;
 }
 
-
-
-
 OpenGLRenderDevice::OpenGLRenderDevice(GameWindow* InWindow)
 {
 	std::cout << "OpenGLRenderDevice::OpenGLRenderDevice(GameWindow* InWindow)" << std::endl;
@@ -248,8 +276,7 @@ void OpenGLRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)
 {
 	std::cout << "OpenGLRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)" << std::endl;	
     glClearColor(0.2f, 0.35f, 0.3f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);		
-	tileCount = 0;
+	glClear(GL_COLOR_BUFFER_BIT);
 	xOffset -= 0.1;
 }
 
@@ -262,49 +289,148 @@ void OpenGLRenderDevice::Unlock(bool Blit)
 	}
 }
 
+Vertex Vertexxx(GLfloat x, GLfloat y, GLfloat z)
+{
+	Vertex vertex;
+	vertex.Position[0] = x;
+	vertex.Position[1] = y;
+	vertex.Position[2] = z;
+
+	return vertex;
+}
+
 void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Surface, FSurfaceFacet& Facet)
 {
 	std::cout << "OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Surface, FSurfaceFacet& Facet)" << std::endl;
+	std::cout << "FSurfaceFacet facet vertex count: " << Facet.VertexCount << std::endl;
+
+	auto pts = Facet.Vertices;
+	uint32_t vcount = Facet.VertexCount;
+
+	std::vector<Vertex> verticesVector;
+	std::vector<GLuint> indicesVector;
+
+	for (uint32_t i = 0; i < vcount; i++)
+	{
+		vec3 point = pts[i];
+		float u = dot(Facet.MapCoords.XAxis, point);
+		float v = dot(Facet.MapCoords.YAxis, point);
+
+		Vertex vertex;
+		vertex.Position[0] = std::min(std::abs(point.x / 2000.f), 1.f);
+		vertex.Position[1] = std::min(std::abs(point.y / 2000.f), 1.f);
+		//vertex.Position[2] = point.z / 5000.f;
+		vertex.Position[2] = 0;
+		vertex.TextureUV[0] = u;
+		vertex.TextureUV[1] = v;
+
+		verticesVector.push_back(vertex);
+		indicesVector.push_back(i);
+	}
+
+	auto surface = duplicateSurface(referenceSurface);
+
+	verticesVector.clear();
+	verticesVector.push_back(Vertexxx(-1, -1, 0));
+	verticesVector.push_back(Vertexxx(0, 1, 0));
+	verticesVector.push_back(Vertexxx(1, -1, 0));
+
+	indicesVector.clear();
+	indicesVector.push_back(0);
+	indicesVector.push_back(1);
+	indicesVector.push_back(2);
+
+    Vertex *vertices = verticesVector.data();
+    GLuint *indices = indicesVector.data();
+
+	GLsizei verticesSize = sizeof(Vertex) * verticesVector.size();
+	GLsizei indicesSize = sizeof(GLuint) * indicesVector.size(); 
+	GLsizei indicesCount = indicesVector.size();
+
+	GLuint shader_program = Shaders->shaders[DrawComplexSurfaceShader]->ProgramID;
+	GLint pos = glGetAttribLocation(shader_program, "vertex");
+
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
+
+	glViewport(0, 0, 1920, 1080);
+
+	GLuint vbo, indexBuffer;
+
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
+
+    glGenBuffers(1, &indexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesSize, indices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
+    glEnableVertexAttribArray(pos);
+
+    glUseProgram(shader_program);
+
+	glActiveTexture(GL_TEXTURE0);
+
+    GLint uvSlot = glGetAttribLocation(shader_program, "uvIn");
+    glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) (sizeof(Vertex::Position)));
+    glEnableVertexAttribArray(uvSlot);
+
+	if (surface == nullptr) {
+		std::cout << "CANT LOAD TEXT_TEXTURE!!!" << std::endl;
+		exit(1);
+	}
+
+    auto surfaceLength = surface->w * surface->h * 3;
+
+    // swap bgr -> rgb
+
+    for (auto i = 0; i < surfaceLength; i += 3) {
+
+        auto pixels = (Uint8 *) surface->pixels;
+
+        auto blueComponent = pixels[i];
+        auto greenComponent = pixels[i + 1];
+        auto redComponent = pixels[i + 2];
+
+        pixels[i] = redComponent;
+        pixels[i + 1] = greenComponent;
+        pixels[i + 2] = blueComponent;
+
+    }
+
+    auto palleteMode = GL_RGB;
+
+    GLuint textureBinding;
+    glGenTextures(1, &textureBinding);
+    glBindTexture(GL_TEXTURE_2D, textureBinding);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
+    
+	glActiveTexture(GL_TEXTURE0);
+
+    SDL_FreeSurface(surface);
+    //glEnable(GL_DEPTH_TEST);
+    //glEnable(GL_CULL_FACE);
+    GLint textureSlot = glGetUniformLocation(shader_program, "texture");
+    glUniform1i(textureSlot, 0);
+
+    glDrawElements(
+		GL_TRIANGLES, 
+		indicesCount,
+        GL_UNSIGNED_INT, 
+		0
+	);
+
+    glDeleteBuffers(1, &vbo);
+    glDeleteBuffers(1, &indexBuffer);
+    glDeleteTextures(1, &textureBinding);	
 }
 
 void OpenGLRenderDevice::DrawGouraudPolygon(FSceneNode* Frame, FTextureInfo& Info, const GouraudVertex* Pts, int NumPts, uint32_t PolyFlags)
 {
-	std::cout << "OpenGLRenderDevice::DrawGouraudPolygon(FSceneNode* Frame, FTextureInfo& Info, const GouraudVertex* Pts, int NumPts, uint32_t PolyFlags)" << std::endl;
-}
-
-typedef struct {
-    GLfloat Position[3];
-	GLfloat TextureUV[2];
-} Vertex;
-
-auto referenceSurface = SDL_LoadBMP("test_texture.bmp"); // must be 24-bit color pallete
-
-
-SDL_Surface* duplicateSurface(SDL_Surface* original) {
-    if (!original) {
-        fprintf(stderr, "Original surface is NULL!\n");
-        return NULL;
-    }
-
-    // Create a new surface with the same width, height, depth, and pixel format
-    SDL_Surface* duplicate = SDL_CreateRGBSurfaceWithFormat(0, 
-                                                            original->w, 
-                                                            original->h, 
-                                                            original->format->BitsPerPixel, 
-                                                            original->format->format);
-    if (!duplicate) {
-        fprintf(stderr, "SDL_CreateRGBSurfaceWithFormat Error: %s\n", SDL_GetError());
-        return NULL;
-    }
-
-    // Blit the original surface onto the new surface
-    if (SDL_BlitSurface(original, NULL, duplicate, NULL) != 0) {
-        fprintf(stderr, "SDL_BlitSurface Error: %s\n", SDL_GetError());
-        SDL_FreeSurface(duplicate);
-        return NULL;
-    }
-
-    return duplicate;
+	//std::cout << "OpenGLRenderDevice::DrawGouraudPolygon(FSceneNode* Frame, FTextureInfo& Info, const GouraudVertex* Pts, int NumPts, uint32_t PolyFlags)" << std::endl;	
 }
 
 void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
@@ -312,13 +438,12 @@ void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
 			  float U, float V, float UL, float VL, float Z, 
 			  vec4 Color, vec4 Fog, uint32_t PolyFlags)
 {
+	auto surface = duplicateSurface(referenceSurface);
 
-auto surface = duplicateSurface(referenceSurface);
-
-GLfloat u = GLfloat(U) / 256.f;
-GLfloat v = GLfloat(V) / 256.f;
-GLfloat ul = GLfloat(UL) / 256.f;
-GLfloat vl = GLfloat(VL) / 256.f;
+	GLfloat u = GLfloat(U) / 256.f;
+	GLfloat v = GLfloat(V) / 256.f;
+	GLfloat ul = GLfloat(UL) / 256.f;
+	GLfloat vl = GLfloat(VL) / 256.f;
 
     GLfloat viewportWidth = 1920;
     GLfloat viewportHeight = 1080;
@@ -334,14 +459,17 @@ GLfloat vl = GLfloat(VL) / 256.f;
         {{ndcX + ndcXL, ndcY - ndcYL, Z}, {u + ul, v + vl}},
         {{ndcX, ndcY - ndcYL, Z},  {u, v + vl}}
     };
+	GLint verticesCount = 4;
 
-    unsigned int indices[] = {
+    GLuint indices[] = {
         0, 1, 2,
         2, 3, 0
     };
+	GLsizei indicesCount = 6;
 
-	GLuint shader_program = Shaders->sceneShader->ProgramID;
-	GLint pos = glGetAttribLocation(shader_program, "vertex");
+	auto shader_program = Shaders->shaders[DrawTileShader];
+	auto shaderProgramID = shader_program->ProgramID;
+	GLint pos = glGetAttribLocation(shaderProgramID, "vertex");
 
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
@@ -350,22 +478,25 @@ GLfloat vl = GLfloat(VL) / 256.f;
 
 	GLuint vbo, indexBuffer;
 
+	GLsizei verticesSize = sizeof(Vertex) * verticesCount;
+	GLsizei indicesSize = sizeof(GLuint) * indicesCount;
+
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
 
     glGenBuffers(1, &indexBuffer);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesSize, indices, GL_STATIC_DRAW);
 
     glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
     glEnableVertexAttribArray(pos);
 
-    glUseProgram(shader_program);
+    glUseProgram(shaderProgramID);
 
 	glActiveTexture(GL_TEXTURE0);
 
-    GLint uvSlot = glGetAttribLocation(shader_program, "uvIn");
+    GLint uvSlot = glGetAttribLocation(shaderProgramID, "uvIn");
     glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) (sizeof(Vertex::Position)));
     glEnableVertexAttribArray(uvSlot);
 
@@ -373,7 +504,6 @@ GLfloat vl = GLfloat(VL) / 256.f;
 	// texture->Bind();
     // GLint textureSlot = glGetUniformLocation(shader_program, "texture");
     // glUniform1i(textureSlot, 0);
-
 
 	if (surface == nullptr) {
 		std::cout << "CANT LOAD TEXT_TEXTURE!!!" << std::endl;
@@ -463,17 +593,15 @@ GLfloat vl = GLfloat(VL) / 256.f;
     SDL_FreeSurface(surface);
     //glEnable(GL_DEPTH_TEST);
     //glEnable(GL_CULL_FACE);
-    GLint textureSlot = glGetUniformLocation(shader_program, "texture");
+    GLint textureSlot = glGetUniformLocation(shaderProgramID, "texture");
     glUniform1i(textureSlot, 0);
 
     glDrawElements(
 		GL_TRIANGLES, 
-		sizeof(indices) / sizeof(indices[0]),
+		indicesCount,
         GL_UNSIGNED_INT, 
 		0
 	);
-		
-	tileCount += 1;
 
     glDeleteBuffers(1, &vbo);
     glDeleteBuffers(1, &indexBuffer);

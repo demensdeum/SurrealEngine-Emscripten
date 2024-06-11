@@ -18,7 +18,12 @@ public:
 	void Bind();
 	void Unbind();
 
-	void Compile(const char* vertexCode, const char* fragmentCode, const char* geometryCode, int debug_index);
+	void Compile(
+		const std::string vertexCode, 
+		const std::string fragmentCode, 
+		const std::string geometryCode, 
+		int debug_index
+	);
 
 	void SetUniformMat4(const std::string& uniformName, mat4 value);
 	void SetUniformSampler2D(const std::string& uniformName, const int GLTextureSlot);

@@ -5,12 +5,28 @@
 #include <memory>
 #include <string>
 
+#include <unordered_map>
+
+enum GLShaderID {
+	DrawComplexSurfaceShader,
+	DrawTileShader
+};
+
 class GLShaderManager
 {
 public:
 	GLShaderManager();
+	~GLShaderManager();
 
-	std::unique_ptr<GLShader> sceneShader;
+	std::unordered_map<GLShaderID, GLShader*> shaders;
 
-	void LoadShaderCode(const std::string& vertexShaderCode, const std::string& fragmentShaderCode, int debug_index);
+private:
+	void LoadShaderCode(
+		GLShaderID shaderID,
+		const std::string& vertexShaderCode,
+		const std::string& fragmentShaderCode, 
+		int debug_index
+	);
+
+	void flush();
 };

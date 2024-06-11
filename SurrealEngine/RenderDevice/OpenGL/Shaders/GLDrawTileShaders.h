@@ -1,8 +1,8 @@
 #pragma once
 
-// Shaders taken from VulkanRenderDevice, and modified a bit to fit OpenGL 3.3
+#include <string>
 
-const std::string vertexShaderCode =
+const std::string drawTileVertexShaderCode =
     R"(#version 100
 attribute vec4 vertex;
 attribute vec2 uvIn;
@@ -12,7 +12,7 @@ void main() {
     uvOut = uvIn;
 })";
 
-const std::string fragmentShaderCode = 
+const std::string drawTileFragmentShaderCode = 
     R"(#version 100
     precision mediump int;
     precision mediump float;
