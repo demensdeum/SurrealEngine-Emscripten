@@ -9,9 +9,12 @@
 #include <SDL2/SDL.h>
 #include <iostream>
 
+#define GLM_ENABLE_EXPERIMENTAL
+
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 
 auto referenceSurface = SDL_LoadBMP("test_texture.bmp"); // must be 24-bit color pallete
 
@@ -254,7 +257,7 @@ OpenGLRenderDevice::OpenGLRenderDevice(GameWindow* InWindow)
 
 OpenGLRenderDevice::~OpenGLRenderDevice()
 {
-	std::cout << "OpenGLRenderDevice::~OpenGLRenderDevice()" << std::endl;	
+	//std::cout << "OpenGLRenderDevice::~OpenGLRenderDevice()" << std::endl;	
 	Textures->ClearTextures();
 	Framebuffers.reset();
 	Shaders.reset();
@@ -282,7 +285,7 @@ void OpenGLRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)
 
 void OpenGLRenderDevice::Unlock(bool Blit)
 {
-	std::cout << "OpenGLRenderDevice::Unlock(bool Blit)" << std::endl;	
+	//std::cout << "OpenGLRenderDevice::Unlock(bool Blit)" << std::endl;	
 
 	if (Blit) {
 		SDL_GL_SwapWindow(SDL2Window::currentWindow);	
@@ -314,26 +317,68 @@ Vertex Vertexxx(GLfloat x, GLfloat y, GLfloat z)
 //     return result;
 // }
 
-// void printTransform(const glm::mat4 &m) {
-//     // Extract translation
-//     glm::vec3 translation = glm::vec3(m[3][0], m[3][1], m[3][2]);
-    
-//     // Extract rotation
-//     glm::vec3 eulerAngles = glm::eulerAngles(glm::quat_cast(m));
-    
-//     // Convert rotation from radians to degrees
-//     eulerAngles = glm::degrees(eulerAngles);
 
-//     std::cout << "Position (x, y, z): (" 
-//               << translation.x << ", " 
-//               << translation.y << ", " 
-//               << translation.z << ")\n";
+bool isUnitMatrix(const glm::mat4 &m) {
+    glm::mat4 identityMatrix = glm::mat4(1.0f);
+    const float* pMatrix = (const float*)glm::value_ptr(m);
+    const float* pIdentity = (const float*)glm::value_ptr(identityMatrix);
+    for (int i = 0; i < 16; ++i) {
+        if (pMatrix[i] != pIdentity[i]) {
+            return false;
+        }
+    }
+    return true;
+}
 
-//     std::cout << "Rotation (x, y, z): (" 
-//               << eulerAngles.x << ", " 
-//               << eulerAngles.y << ", " 
-//               << eulerAngles.z << ")\n";
-// }
+void printTTransform(std::string name, const glm::mat4 &m) {
+	return;
+  std::cout << "Matrix name: " << name << std::endl;
+
+  // Decompose the matrix
+	glm::vec3 scale;
+	glm::quat rotation;
+	glm::vec3 translation;
+	glm::vec3 skew;
+	glm::vec4 perspective;
+  bool decomposed = glm::decompose(m, scale, rotation, translation, skew, perspective);
+
+  // Check for decomposition success
+  if (!decomposed) {
+    std::cout << "Decomposition failed!\n";
+    return;
+  }
+
+  // Print information
+  std::cout << "Matrix:\n";
+  const float* pMatrix = (const float*)glm::value_ptr(m);
+  for (int i = 0; i < 4; ++i) {
+    for (int j = 0; j < 4; ++j) {
+      std::cout << pMatrix[i * 4 + j] << " ";
+    }
+    std::cout << "\n";
+  }
+
+  // Print extracted data
+  std::cout << "Position (x, y, z): ("
+            << translation.x << ", "
+            << translation.y << ", "
+            << translation.z << ")\n";
+
+  // Convert quaternion to euler angles (if desired)
+  glm::vec3 eulerAngles = glm::degrees(glm::eulerAngles(rotation));
+  std::cout << "Rotation (x, y, z): ("
+            << eulerAngles.x << ", "
+            << eulerAngles.y << ", "
+            << eulerAngles.z << ")\n";
+
+  // Print scale (if relevant)
+  if (scale != glm::vec3(1.0f)) {
+    std::cout << "Scale (x, y, z): ("
+              << scale.x << ", "
+              << scale.y << ", "
+              << scale.z << ")\n";
+  }
+}
 
 glm::mat4 filllGLMMat4(const mat4 &source) {
     glm::mat4 result;
@@ -349,8 +394,12 @@ glm::mat4 filllGLMMat4(const mat4 &source) {
 
 void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Surface, FSurfaceFacet& Facet)
 {
-	std::cout << "OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Surface, FSurfaceFacet& Facet)" << std::endl;
-	std::cout << "FSurfaceFacet facet vertex count: " << Facet.VertexCount << std::endl;
+	// std::cout << "OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Surface, FSurfaceFacet& Facet)" << std::endl;
+	// std::cout << "FSurfaceFacet facet vertex count: " << Facet.VertexCount << std::endl;
+
+	printTTransform("DrawComplexSurface : Frame->ObjectToWorld", filllGLMMat4(Frame->ObjectToWorld));
+	printTTransform("DrawComplexSurface : Frame->Frame->WorldToView", filllGLMMat4(Frame->WorldToView));
+	printTTransform("DrawComplexSurface : Frame->Projection", filllGLMMat4(Frame->Projection));	
 
 	auto pts = Facet.Vertices;
 	uint32_t vcount = Facet.VertexCount;
@@ -427,16 +476,16 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Sur
     auto projectionMatrixUniform = glGetUniformLocation(shader_program, "projectionMatrix");
     glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, projectionMatrixPtr);
 
-	//auto modelMatrix = glm::mat4(1);
-	glm::mat4 modelMatrix = filllGLMMat4(Frame->ObjectToWorld);
+	auto modelMatrix = glm::mat4(1);
+	//glm::mat4 modelMatrix = filllGLMMat4(Frame->ObjectToWorld);
 	auto modelMatrixPtr = glm::value_ptr(modelMatrix);
 	auto modelMatrixUniform = glGetUniformLocation(shader_program, "modelMatrix");
     glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, modelMatrixPtr);
 
 	//printTransform(modelMatrix);
 
-	//auto viewMatrix = glm::mat4(1);
-    auto viewMatrix = filllGLMMat4(Frame->WorldToView);
+	auto viewMatrix = glm::mat4(1);
+    //auto viewMatrix = filllGLMMat4(Frame->WorldToView);
 	auto viewMatrixPtr = glm::value_ptr(viewMatrix);
     auto viewMatrixUniform = glGetUniformLocation(shader_program, "viewMatrix");
     glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, viewMatrixPtr);
@@ -488,7 +537,7 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Sur
     glUniform1i(textureSlot, 0);
 
     glDrawElements(
-		GL_TRIANGLES, 
+		GL_TRIANGLE_FAN, 
 		indicesCount,
         GL_UNSIGNED_INT, 
 		0
@@ -501,7 +550,9 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Sur
 
 void OpenGLRenderDevice::DrawGouraudPolygon(FSceneNode* Frame, FTextureInfo& Info, const GouraudVertex* Pts, int NumPts, uint32_t PolyFlags)
 {
-	//std::cout << "OpenGLRenderDevice::DrawGouraudPolygon(FSceneNode* Frame, FTextureInfo& Info, const GouraudVertex* Pts, int NumPts, uint32_t PolyFlags)" << std::endl;	
+	printTTransform("DrawGouraudPolygon : Frame->ObjectToWorld", filllGLMMat4(Frame->ObjectToWorld));
+	printTTransform("DrawGouraudPolygon : Frame->Frame->WorldToView", filllGLMMat4(Frame->WorldToView));
+	printTTransform("DrawGouraudPolygon : Frame->Projection", filllGLMMat4(Frame->Projection));	
 }
 
 void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
@@ -710,13 +761,17 @@ void OpenGLRenderDevice::ReadPixels(FColor* Pixels)
 
 void OpenGLRenderDevice::EndFlash()
 {
-	std::cout << "OpenGLRenderDevice::EndFlash()" << std::endl;
+	//std::cout << "OpenGLRenderDevice::EndFlash()" << std::endl;
 }
 
 void OpenGLRenderDevice::SetSceneNode(FSceneNode* Frame)
 {
-	std::cout << "OpenGLRenderDevice::SetSceneNode" << std::endl;
+	//std::cout << "OpenGLRenderDevice::SetSceneNode" << std::endl;
 	//DrawScene();
+
+	printTTransform("SetSceneNode(FSceneNode* Frame) : Frame->ObjectToWorld", filllGLMMat4(Frame->ObjectToWorld));
+	printTTransform("SetSceneNode(FSceneNode* Frame) : Frame->WorldToView", filllGLMMat4(Frame->WorldToView));
+	printTTransform("SetSceneNode(FSceneNode* Frame) : Frame->Projection", filllGLMMat4(Frame->Projection));	
 
 	CurrentFrame = Frame;
 
@@ -744,4 +799,134 @@ bool OpenGLRenderDevice::SupportsTextureFormat(TextureFormat Format)
 void OpenGLRenderDevice::UpdateTextureRect(FTextureInfo& Info, int U, int V, int UL, int VL)
 {
 	std::cout << "OpenGLRenderDevice::UpdateTextureRect" << std::endl;
+}
+
+void OpenGLRenderDevice::DrawModel(FSceneNode *Frame, UModel *model)
+{
+	std::cout << "OpenGLRenderDevice::DrawModel(FSceneNode *Frame, UModel *model)" << std::endl;
+
+	std::vector<Vertex> verticesVector;
+	std::vector<GLuint> indicesVector;
+
+	auto surface = duplicateSurface(referenceSurface);
+
+	verticesVector.clear();
+	verticesVector.push_back(Vertexxx(-1, -1, -3));
+	verticesVector.push_back(Vertexxx(0, 1, -3));
+	verticesVector.push_back(Vertexxx(1, -1, -3));
+
+	indicesVector.clear();
+	indicesVector.push_back(0);
+	indicesVector.push_back(1);
+	indicesVector.push_back(2);
+
+    Vertex *vertices = verticesVector.data();
+    GLuint *indices = indicesVector.data();
+
+	GLsizei verticesSize = sizeof(Vertex) * verticesVector.size();
+	GLsizei indicesSize = sizeof(GLuint) * indicesVector.size(); 
+	GLsizei indicesCount = indicesVector.size();
+
+	GLuint shader_program = Shaders->shaders[DrawComplexSurfaceShader]->ProgramID;
+	GLint pos = glGetAttribLocation(shader_program, "vertex");
+
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
+
+	float width = 1920;
+	float height = 1080;
+	glViewport(0, 0, width, height);
+
+	GLuint vbo, indexBuffer;
+
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
+
+    glGenBuffers(1, &indexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesSize, indices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
+    glEnableVertexAttribArray(pos);
+
+    glUseProgram(shader_program);
+
+	//glm::mat4 projectionMatrix = glm::mat4(1);
+    //glm::mat4 projectionMatrix = glm::perspective(45.0f, float(float(width) / float(height)), 0.0001f, 800.0f);
+	glm::mat4 projectionMatrix = filllGLMMat4(Frame->Projection);
+	auto projectionMatrixPtr = glm::value_ptr(projectionMatrix);
+    auto projectionMatrixUniform = glGetUniformLocation(shader_program, "projectionMatrix");
+    glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, projectionMatrixPtr);
+
+	auto modelMatrix = glm::mat4(1);
+	//glm::mat4 modelMatrix = filllGLMMat4(Frame->ObjectToWorld);
+	auto modelMatrixPtr = glm::value_ptr(modelMatrix);
+	auto modelMatrixUniform = glGetUniformLocation(shader_program, "modelMatrix");
+    glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, modelMatrixPtr);
+
+	//printTransform(modelMatrix);
+
+	auto viewMatrix = glm::mat4(1);
+    //auto viewMatrix = filllGLMMat4(Frame->WorldToView);
+	auto viewMatrixPtr = glm::value_ptr(viewMatrix);
+    auto viewMatrixUniform = glGetUniformLocation(shader_program, "viewMatrix");
+    glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, viewMatrixPtr);
+
+	glActiveTexture(GL_TEXTURE0);
+
+    GLint uvSlot = glGetAttribLocation(shader_program, "uvIn");
+    glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) (sizeof(Vertex::Position)));
+    glEnableVertexAttribArray(uvSlot);
+
+	if (surface == nullptr) {
+		std::cout << "CANT LOAD TEXT_TEXTURE!!!" << std::endl;
+		exit(1);
+	}
+
+    auto surfaceLength = surface->w * surface->h * 3;
+
+    // swap bgr -> rgb
+
+    for (auto i = 0; i < surfaceLength; i += 3) {
+
+        auto pixels = (Uint8 *) surface->pixels;
+
+        auto blueComponent = pixels[i];
+        auto greenComponent = pixels[i + 1];
+        auto redComponent = pixels[i + 2];
+
+        pixels[i] = redComponent;
+        pixels[i + 1] = greenComponent;
+        pixels[i + 2] = blueComponent;
+
+    }
+
+    auto palleteMode = GL_RGB;
+
+    GLuint textureBinding;
+    glGenTextures(1, &textureBinding);
+    glBindTexture(GL_TEXTURE_2D, textureBinding);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
+    
+	glActiveTexture(GL_TEXTURE0);
+
+    SDL_FreeSurface(surface);
+    //glEnable(GL_DEPTH_TEST);
+    //glEnable(GL_CULL_FACE);
+    GLint textureSlot = glGetUniformLocation(shader_program, "texture");
+    glUniform1i(textureSlot, 0);
+
+    glDrawElements(
+		GL_TRIANGLE_FAN, 
+		indicesCount,
+        GL_UNSIGNED_INT, 
+		0
+	);
+
+    glDeleteBuffers(1, &vbo);
+    glDeleteBuffers(1, &indexBuffer);
+    glDeleteTextures(1, &textureBinding);	
 }

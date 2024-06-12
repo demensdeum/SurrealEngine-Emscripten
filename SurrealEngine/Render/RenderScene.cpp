@@ -11,6 +11,12 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+
+#define RENDERING_HACK 1
+#if RENDERING_HACK
+#include "RenderDevice/OpenGL/OpenGLRenderDevice.h"
+#endif
+
 glm::mat4 fillGLMMat4(const mat4 &source) {
     glm::mat4 result;
 
@@ -83,8 +89,7 @@ void RenderSubsystem::DrawScene()
 
 void RenderSubsystem::DrawFrame(const vec3& location, const mat4& worldToView)
 {
-	printTransform(fillGLMMat4(worldToView));
-
+	std::cout << "DrawFrame location x: " << location.x << " y: " << location.y << " z: " << location.z << std::endl;
 
 	SetupSceneFrame(worldToView);
 	Scene.Clipper.Setup(Scene.Frame.Projection * Scene.Frame.WorldToView * Scene.Frame.ObjectToWorld);
@@ -219,7 +224,11 @@ void RenderSubsystem::DrawNodeSurface(const DrawNodeInfo& nodeInfo)
 	surfaceinfo.LightMap = lightmap.NumMips != 0 ? &lightmap : nullptr;
 	surfaceinfo.FogMap = fogmap.NumMips != 0 ? &fogmap : nullptr;
 
+#if RENDERING_HACK
+	((OpenGLRenderDevice*)Device)->DrawModel(&Scene.Frame, model);
+#else
 	Device->DrawComplexSurface(&Scene.Frame, surfaceinfo, facet);
+#endif
 }
 
 int RenderSubsystem::FindZoneAt(const vec3& location)

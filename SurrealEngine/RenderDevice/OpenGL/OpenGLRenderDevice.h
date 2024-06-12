@@ -12,6 +12,8 @@
 
 #include <GL/glew.h>
 
+#include "UObject/ULevel.h"
+
 class OpenGLRenderDevice : public RenderDevice
 {
 public:
@@ -45,6 +47,7 @@ public:
 	
 	void Unlock(bool Blit) override;
 
+	void DrawModel(FSceneNode *Frame, UModel *model);
 
 
 	bool Exec(std::string Cmd, OutputDevice& Ar) override;

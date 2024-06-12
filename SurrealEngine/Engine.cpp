@@ -208,7 +208,13 @@ void Engine::Run()
 			rotprop.Struct = UObject::Cast<UStructProperty>(funcPlayerCalcView->Properties[2])->Struct;
 			CameraActor = viewport->Actor();
 			CameraLocation = viewport->Actor()->Location();
+
+			std::cout << "Camera Location x: "<< CameraLocation[0] << " y: "<< CameraLocation[1] << " z: "<< CameraLocation[2] << std::endl;
+
 			CameraRotation = viewport->Actor()->Rotation();
+
+			std::cout << "Camera rotation x: "<< CameraRotation.PitchDegrees() << " y: "<< CameraRotation.YawDegrees() << " z: "<< CameraRotation.RollDegrees() << std::endl;
+
 			CameraFovAngle = viewport->Actor()->FovAngle();
 			CallEvent(viewport->Actor(), EventName::PlayerCalcView, {
 				ExpressionValue::Variable(&CameraActor, &objprop),
