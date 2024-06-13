@@ -447,13 +447,15 @@ void SDL2Window::OnMouseWheel(SDL_MouseWheelEvent& event)
 void SDL2Window::OnMouseMove(SDL_MouseMotionEvent& event)
 {
     if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
-        windowHost->OnWindowRawMouseMove(event.xrel, event.yrel);
+        //windowHost->OnWindowRawMouseMove(event.xrel, event.yrel);
+        windowHost->OnWindowRawMouseMove(event.xrel, 0);
         int w, h;
         SDL_GetWindowSize(m_SDLWindow, &w, &h);
         SDL_WarpMouseInWindow(m_SDLWindow, w / 2, h / 2);
     }
     else {
-        windowHost->OnWindowMouseMove(Point(event.x, event.y));
+        //windowHost->OnWindowMouseMove(Point(event.x, event.y));
+        windowHost->OnWindowMouseMove(Point(event.x, 0));
     }
 }
 

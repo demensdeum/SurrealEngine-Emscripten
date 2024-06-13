@@ -399,10 +399,24 @@ glm::mat4 filllGLMMat4(const mat4 &source) {
     return result;
 }
 
+float hackY = 0;
+
 void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Surface, FSurfaceFacet& Facet)
 {
 	// std::cout << "OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Surface, FSurfaceFacet& Facet)" << std::endl;
 	// std::cout << "FSurfaceFacet facet vertex count: " << Facet.VertexCount << std::endl;
+
+
+
+	auto textureWidth = Surface.Texture->Mips[0].Width;
+	auto textureHeight = Surface.Texture->Mips[0].Height;
+
+	auto surface = SDL_CreateRGBSurfaceWithFormat(0, 
+                                                textureWidth, 
+                                            	textureHeight, 
+                                                24, 
+                                                SDL_PIXELFORMAT_RGB24
+												);
 
 	printTTransform("DrawComplexSurface : Frame->ObjectToWorld", filllGLMMat4(Frame->ObjectToWorld));
 	printTTransform("DrawComplexSurface : Frame->Frame->WorldToView", filllGLMMat4(Frame->WorldToView));
@@ -421,28 +435,27 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Sur
 		float v = dot(Facet.MapCoords.YAxis, point);
 
 		Vertex vertex;
-		vertex.Position[0] = std::min(std::abs(point.x / 2000.f), 1.f);
-		vertex.Position[1] = std::min(std::abs(point.y / 2000.f), 1.f);
-		//vertex.Position[2] = point.z / 5000.f;
-		vertex.Position[2] = 0;
-		vertex.TextureUV[0] = u;
-		vertex.TextureUV[1] = v;
+		vertex.Position[0] = point.x;
+		vertex.Position[1] = point.y;
+		vertex.Position[2] = point.z;
+		vertex.TextureUV[0] = u / 100;
+		vertex.TextureUV[1] = v / 100;
 
 		verticesVector.push_back(vertex);
 		indicesVector.push_back(i);
 	}
 
-	auto surface = duplicateSurface(referenceSurface);
+	//auto surface = duplicateSurface(referenceSurface);
 
-	verticesVector.clear();
-	verticesVector.push_back(Vertexxx(-1, -1, -3));
-	verticesVector.push_back(Vertexxx(0, 1, -3));
-	verticesVector.push_back(Vertexxx(1, -1, -3));
+	// verticesVector.clear();
+	// verticesVector.push_back(Vertexxx(-1, -1, -3));
+	// verticesVector.push_back(Vertexxx(0, 1, -3));
+	// verticesVector.push_back(Vertexxx(1, -1, -3));
 
-	indicesVector.clear();
-	indicesVector.push_back(0);
-	indicesVector.push_back(1);
-	indicesVector.push_back(2);
+	// indicesVector.clear();
+	// indicesVector.push_back(0);
+	// indicesVector.push_back(1);
+	// indicesVector.push_back(2);
 
     Vertex *vertices = verticesVector.data();
     GLuint *indices = indicesVector.data();
@@ -457,9 +470,7 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Sur
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
 
-	float width = 1920;
-	float height = 1080;
-	glViewport(0, 0, width, height);
+	//glViewport(0, 0, width, height);
 
 	GLuint vbo, indexBuffer;
 
@@ -492,6 +503,18 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Sur
 	//printTransform(modelMatrix);
 
 	auto viewMatrix = glm::mat4(1);
+	
+	viewMatrix = glm::translate(viewMatrix, glm::vec3(GLOBAL_CAMERA_X, GLOBAL_CAMERA_Y, GLOBAL_CAMERA_Z));
+
+	hackY = 2;
+
+    viewMatrix = glm::rotate(viewMatrix, GLOBAL_CAMERA_ROTATION_Y + hackY, glm::vec3(0.f, 1.f, 0.f));
+    viewMatrix = glm::rotate(viewMatrix, GLOBAL_CAMERA_ROTATION_X, glm::vec3(1.f, 0.f, 0.f));
+    viewMatrix = glm::rotate(viewMatrix, GLOBAL_CAMERA_ROTATION_Z, glm::vec3(0.f, 0.f, 1.f));
+
+	std::cout << "cameraRotationHackY: " << hackY << std::endl;
+
+	//auto viewMatrix = glm::mat4(1);
     //auto viewMatrix = filllGLMMat4(Frame->WorldToView);
 	auto viewMatrixPtr = glm::value_ptr(viewMatrix);
     auto viewMatrixUniform = glGetUniformLocation(shader_program, "viewMatrix");
@@ -533,7 +556,60 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Sur
     glBindTexture(GL_TEXTURE_2D, textureBinding);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
+
+
+	auto miplevel = 0;
+	{
+		auto& mipmap = Surface.Texture->Mips[0];
+
+		uint8_t* mipmapData = mipmap.Data.data();
+		GLuint textureFormat = TextureFormatToGL(Surface.Texture->Format);
+
+		if (textureFormat >= GL_COMPRESSED_RGBA_S3TC_DXT1_EXT && textureFormat <= GL_COMPRESSED_RGBA_S3TC_DXT5_EXT)
+		{
+			glCompressedTexImage2D(GL_TEXTURE_2D, miplevel, textureFormat, mipmap.Width, mipmap.Height, 0, 0, mipmapData);
+		}
+		else
+		{
+			if (Surface.Texture->Format == TextureFormat::P8)
+			{
+				// Convert P8 to RGBA32
+				auto converted_data = P8_Convert(Surface.Texture, miplevel);
+				mipmapData = (uint8_t*)converted_data.data();
+
+				int cursor = 0;
+				for (auto i = 0; i < textureWidth * textureHeight * 4; i += 4) {
+
+					auto surfacePixels = (Uint8 *) surface->pixels;
+
+					auto pixels = mipmapData;
+
+					
+					auto redComponent = pixels[i];
+					auto greenComponent = pixels[i + 1];
+					auto blueComponent = pixels[i + 2];
+
+					surfacePixels[cursor] = redComponent;
+					surfacePixels[cursor + 1] = greenComponent;
+					surfacePixels[cursor + 2] = blueComponent;
+
+					cursor += 3;
+				}			
+
+			}
+			
+			//glTexImage2D(GL_TEXTURE_2D, miplevel, textureFormat, mipmap.Width, mipmap.Height, 0, textureFormat, GL_UNSIGNED_BYTE, mipmapData);
+		}
+	}
 	glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
+
+
+
+
+
+
+
+	//glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
     
 	glActiveTexture(GL_TEXTURE0);
 

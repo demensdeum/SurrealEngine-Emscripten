@@ -12,7 +12,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 
-#define RENDERING_HACK 1
+#define RENDERING_HACK 0
 #if RENDERING_HACK
 #include "RenderDevice/OpenGL/OpenGLRenderDevice.h"
 #endif
