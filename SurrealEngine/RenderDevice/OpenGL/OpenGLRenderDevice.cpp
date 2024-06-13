@@ -16,8 +16,15 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 
-auto referenceSurface = SDL_LoadBMP("test_texture.bmp"); // must be 24-bit color pallete
+float OpenGLRenderDevice::GLOBAL_CAMERA_X = 0;
+float OpenGLRenderDevice::GLOBAL_CAMERA_Y = 0;
+float OpenGLRenderDevice::GLOBAL_CAMERA_Z = 0;
 
+float OpenGLRenderDevice::GLOBAL_CAMERA_ROTATION_X = 0;
+float OpenGLRenderDevice::GLOBAL_CAMERA_ROTATION_Y = 0;
+float OpenGLRenderDevice::GLOBAL_CAMERA_ROTATION_Z = 0;
+
+auto referenceSurface = SDL_LoadBMP("test_texture.bmp"); // must be 24-bit color pallete
 
 SDL_Surface* duplicateSurface(SDL_Surface* original) {
     if (!original) {
@@ -299,8 +306,8 @@ Vertex Vertexxx(GLfloat x, GLfloat y, GLfloat z)
 	vertex.Position[1] = y;
 	vertex.Position[2] = z;
 
-	vertex.TextureUV[0] = 0;
-	vertex.TextureUV[1] = 1;
+	vertex.TextureUV[0] = x;
+	vertex.TextureUV[1] = y;
 
 	return vertex;
 }
@@ -550,9 +557,142 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Sur
 
 void OpenGLRenderDevice::DrawGouraudPolygon(FSceneNode* Frame, FTextureInfo& Info, const GouraudVertex* Pts, int NumPts, uint32_t PolyFlags)
 {
-	printTTransform("DrawGouraudPolygon : Frame->ObjectToWorld", filllGLMMat4(Frame->ObjectToWorld));
-	printTTransform("DrawGouraudPolygon : Frame->Frame->WorldToView", filllGLMMat4(Frame->WorldToView));
-	printTTransform("DrawGouraudPolygon : Frame->Projection", filllGLMMat4(Frame->Projection));	
+
+	std::cout << "OpenGLRenderDevice::DrawModel(FSceneNode *Frame, UModel *model)" << std::endl;
+
+	std::vector<Vertex> verticesVector;
+	std::vector<GLuint> indicesVector;
+
+	auto surface = duplicateSurface(referenceSurface);
+
+
+	if (NumPts < 3) {
+		return;
+	}
+
+	for (int i = 0; i < NumPts; i++) {
+		indicesVector.push_back(verticesVector.size());
+		verticesVector.push_back(Vertexxx(Pts->Point.x, Pts->Point.y, Pts->Point.z));
+	}
+
+	//indicesVector = triangleIndicesToLines(indicesVector);
+
+    Vertex *vertices = verticesVector.data();
+    GLuint *indices = indicesVector.data();
+
+	GLsizei verticesSize = sizeof(Vertex) * verticesVector.size();
+	GLsizei indicesSize = sizeof(GLuint) * indicesVector.size(); 
+	GLsizei indicesCount = indicesVector.size();
+
+	GLuint shader_program = Shaders->shaders[DrawComplexSurfaceShader]->ProgramID;
+	GLint pos = glGetAttribLocation(shader_program, "vertex");
+
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
+
+	float width = 1920;
+	float height = 1080;
+	glViewport(0, 0, width, height);
+
+	GLuint vbo, indexBuffer;
+
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
+
+    glGenBuffers(1, &indexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesSize, indices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
+    glEnableVertexAttribArray(pos);
+
+    glUseProgram(shader_program);
+
+	//glm::mat4 projectionMatrix = glm::mat4(1);
+    //glm::mat4 projectionMatrix = glm::perspective(45.0f, float(float(width) / float(height)), 0.0001f, 800.0f);
+	glm::mat4 projectionMatrix = filllGLMMat4(Frame->Projection);
+	auto projectionMatrixPtr = glm::value_ptr(projectionMatrix);
+    auto projectionMatrixUniform = glGetUniformLocation(shader_program, "projectionMatrix");
+    glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, projectionMatrixPtr);
+
+	auto modelMatrix = glm::mat4(1);
+	//glm::mat4 modelMatrix = filllGLMMat4(Frame->ObjectToWorld);
+	auto modelMatrixPtr = glm::value_ptr(modelMatrix);
+	auto modelMatrixUniform = glGetUniformLocation(shader_program, "modelMatrix");
+    glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, modelMatrixPtr);
+
+	//printTransform(modelMatrix);
+
+	auto viewMatrix = glm::mat4(1);
+	
+	viewMatrix = glm::translate(viewMatrix, glm::vec3(GLOBAL_CAMERA_X, GLOBAL_CAMERA_Y, GLOBAL_CAMERA_Z));
+
+    viewMatrix = glm::rotate(viewMatrix, GLOBAL_CAMERA_ROTATION_Y, glm::vec3(0.f, 1.f, 0.f));
+    viewMatrix = glm::rotate(viewMatrix, GLOBAL_CAMERA_ROTATION_X, glm::vec3(1.f, 0.f, 0.f));
+    //viewMatrix = glm::rotate(viewMatrix, GLOBAL_CAMERA_ROTATION_Z, glm::vec3(0.f, 0.f, 1.f));
+
+    //auto viewMatrix = filllGLMMat4(Frame->WorldToView);
+	auto viewMatrixPtr = glm::value_ptr(viewMatrix);
+    auto viewMatrixUniform = glGetUniformLocation(shader_program, "viewMatrix");
+    glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, viewMatrixPtr);
+
+	glActiveTexture(GL_TEXTURE0);
+
+    GLint uvSlot = glGetAttribLocation(shader_program, "uvIn");
+    glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) (sizeof(Vertex::Position)));
+    glEnableVertexAttribArray(uvSlot);
+
+	if (surface == nullptr) {
+		std::cout << "CANT LOAD TEXT_TEXTURE!!!" << std::endl;
+		exit(1);
+	}
+
+    auto surfaceLength = surface->w * surface->h * 3;
+
+    // swap bgr -> rgb
+
+    for (auto i = 0; i < surfaceLength; i += 3) {
+
+        auto pixels = (Uint8 *) surface->pixels;
+
+        auto blueComponent = pixels[i];
+        auto greenComponent = pixels[i + 1];
+        auto redComponent = pixels[i + 2];
+
+        pixels[i] = redComponent;
+        pixels[i + 1] = greenComponent;
+        pixels[i + 2] = blueComponent;
+
+    }
+
+    auto palleteMode = GL_RGB;
+
+    GLuint textureBinding;
+    glGenTextures(1, &textureBinding);
+    glBindTexture(GL_TEXTURE_2D, textureBinding);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
+    
+	glActiveTexture(GL_TEXTURE0);
+
+    SDL_FreeSurface(surface);
+    //glEnable(GL_DEPTH_TEST);
+    //glEnable(GL_CULL_FACE);
+    GLint textureSlot = glGetUniformLocation(shader_program, "texture");
+    glUniform1i(textureSlot, 0);
+
+    glDrawElements(
+		GL_TRIANGLES, 
+		indicesCount,
+        GL_UNSIGNED_INT, 
+		0
+	);
+
+    glDeleteBuffers(1, &vbo);
+    glDeleteBuffers(1, &indexBuffer);
+    glDeleteTextures(1, &textureBinding);	
 }
 
 void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
@@ -560,12 +700,20 @@ void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
 			  float U, float V, float UL, float VL, float Z, 
 			  vec4 Color, vec4 Fog, uint32_t PolyFlags)
 {
-	auto surface = duplicateSurface(referenceSurface);
+	auto width = Info.Mips[0].Width;
+	auto height = Info.Mips[0].Height;
 
-	GLfloat u = GLfloat(U) / 256.f;
-	GLfloat v = GLfloat(V) / 256.f;
-	GLfloat ul = GLfloat(UL) / 256.f;
-	GLfloat vl = GLfloat(VL) / 256.f;
+	auto surface = SDL_CreateRGBSurfaceWithFormat(0, 
+                                                width, 
+                                            	height, 
+                                                24, 
+                                                SDL_PIXELFORMAT_RGB24
+												);
+
+	GLfloat u = GLfloat(U) / width;
+	GLfloat v = GLfloat(V) / height;
+	GLfloat ul = GLfloat(UL) / width;
+	GLfloat vl = GLfloat(VL) / height;
 
     GLfloat viewportWidth = 1920;
     GLfloat viewportHeight = 1080;
@@ -682,7 +830,7 @@ void OpenGLRenderDevice::DrawTile(FSceneNode* Frame, FTextureInfo& Info,
 				mipmapData = (uint8_t*)converted_data.data();
 
 				int cursor = 0;
-				for (auto i = 0; i < mipmap.Width * mipmap.Height * 4; i += 4) {
+				for (auto i = 0; i < width * height * 4; i += 4) {
 
 					auto surfacePixels = (Uint8 *) surface->pixels;
 
@@ -810,15 +958,15 @@ void OpenGLRenderDevice::DrawModel(FSceneNode *Frame, UModel *model)
 
 	auto surface = duplicateSurface(referenceSurface);
 
-	verticesVector.clear();
-	verticesVector.push_back(Vertexxx(-1, -1, -3));
-	verticesVector.push_back(Vertexxx(0, 1, -3));
-	verticesVector.push_back(Vertexxx(1, -1, -3));
 
-	indicesVector.clear();
-	indicesVector.push_back(0);
-	indicesVector.push_back(1);
-	indicesVector.push_back(2);
+	if (model->Points.size() < 3) {
+		return;
+	}
+
+	for (auto point : model->Points) {
+		indicesVector.push_back(verticesVector.size());
+		verticesVector.push_back(Vertexxx(point.x, point.y, point.z));
+	}
 
     Vertex *vertices = verticesVector.data();
     GLuint *indices = indicesVector.data();
@@ -868,6 +1016,13 @@ void OpenGLRenderDevice::DrawModel(FSceneNode *Frame, UModel *model)
 	//printTransform(modelMatrix);
 
 	auto viewMatrix = glm::mat4(1);
+	
+	viewMatrix = glm::translate(viewMatrix, glm::vec3(GLOBAL_CAMERA_X, GLOBAL_CAMERA_Y, GLOBAL_CAMERA_Z));
+
+    viewMatrix = glm::rotate(viewMatrix, GLOBAL_CAMERA_ROTATION_Y, glm::vec3(0.f, 1.f, 0.f));
+    viewMatrix = glm::rotate(viewMatrix, GLOBAL_CAMERA_ROTATION_X, glm::vec3(1.f, 0.f, 0.f));
+    viewMatrix = glm::rotate(viewMatrix, GLOBAL_CAMERA_ROTATION_Z, glm::vec3(0.f, 0.f, 1.f));
+
     //auto viewMatrix = filllGLMMat4(Frame->WorldToView);
 	auto viewMatrixPtr = glm::value_ptr(viewMatrix);
     auto viewMatrixUniform = glGetUniformLocation(shader_program, "viewMatrix");
@@ -920,7 +1075,7 @@ void OpenGLRenderDevice::DrawModel(FSceneNode *Frame, UModel *model)
     glUniform1i(textureSlot, 0);
 
     glDrawElements(
-		GL_TRIANGLE_FAN, 
+		GL_TRIANGLES, 
 		indicesCount,
         GL_UNSIGNED_INT, 
 		0

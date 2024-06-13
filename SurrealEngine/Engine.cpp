@@ -26,6 +26,8 @@
 #include <chrono>
 #include <set>
 
+#include "RenderDevice/OpenGL/OpenGLRenderDevice.h"
+
 Engine* engine = nullptr;
 
 Engine::Engine(GameLaunchInfo launchinfo) : LaunchInfo(launchinfo)
@@ -211,9 +213,17 @@ void Engine::Run()
 
 			std::cout << "Camera Location x: "<< CameraLocation[0] << " y: "<< CameraLocation[1] << " z: "<< CameraLocation[2] << std::endl;
 
+			OpenGLRenderDevice::GLOBAL_CAMERA_X = CameraLocation[0];
+			OpenGLRenderDevice::GLOBAL_CAMERA_Y = CameraLocation[1];
+			OpenGLRenderDevice::GLOBAL_CAMERA_Z = CameraLocation[2];
+
 			CameraRotation = viewport->Actor()->Rotation();
 
 			std::cout << "Camera rotation x: "<< CameraRotation.PitchDegrees() << " y: "<< CameraRotation.YawDegrees() << " z: "<< CameraRotation.RollDegrees() << std::endl;
+
+			OpenGLRenderDevice::GLOBAL_CAMERA_ROTATION_X = CameraRotation.PitchRadians();
+			OpenGLRenderDevice::GLOBAL_CAMERA_ROTATION_Y = CameraRotation.YawRadians();
+			OpenGLRenderDevice::GLOBAL_CAMERA_ROTATION_Z = CameraRotation.RollRadians();
 
 			CameraFovAngle = viewport->Actor()->FovAngle();
 			CallEvent(viewport->Actor(), EventName::PlayerCalcView, {

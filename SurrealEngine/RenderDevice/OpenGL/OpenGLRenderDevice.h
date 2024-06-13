@@ -14,9 +14,23 @@
 
 #include "UObject/ULevel.h"
 
+
+
+
 class OpenGLRenderDevice : public RenderDevice
 {
+
 public:
+
+static float GLOBAL_CAMERA_X;
+static float GLOBAL_CAMERA_Y;
+static float GLOBAL_CAMERA_Z;
+
+static float GLOBAL_CAMERA_ROTATION_X;
+static float GLOBAL_CAMERA_ROTATION_Y;
+static float GLOBAL_CAMERA_ROTATION_Z;
+
+
 	OpenGLRenderDevice(GameWindow* InWindow);
 	~OpenGLRenderDevice();
 

@@ -483,6 +483,7 @@ void Package::ReadTables()
 
 std::unique_ptr<ObjectStream> Package::OpenObjectStream(int index, const NameString& name, UClass* base)
 {
+	std::cout << "OpenObjectStream: " << name.ToString() << std::endl;
 	const auto& entry = ExportTable[index];
 	if (entry.ObjSize > 0)
 	{
