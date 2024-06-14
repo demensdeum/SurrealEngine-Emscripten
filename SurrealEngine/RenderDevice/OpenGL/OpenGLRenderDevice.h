@@ -21,16 +21,6 @@ class OpenGLRenderDevice : public RenderDevice
 {
 
 public:
-
-static float GLOBAL_CAMERA_X;
-static float GLOBAL_CAMERA_Y;
-static float GLOBAL_CAMERA_Z;
-
-static float GLOBAL_CAMERA_ROTATION_X;
-static float GLOBAL_CAMERA_ROTATION_Y;
-static float GLOBAL_CAMERA_ROTATION_Z;
-
-
 	OpenGLRenderDevice(GameWindow* InWindow);
 	~OpenGLRenderDevice();
 
@@ -60,9 +50,6 @@ static float GLOBAL_CAMERA_ROTATION_Z;
 	) override; // Pre render screen clear
 	
 	void Unlock(bool Blit) override;
-
-	void DrawModel(FSceneNode *Frame, UModel *model);
-
 
 	bool Exec(std::string Cmd, OutputDevice& Ar) override;
 	void DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Surface, FSurfaceFacet& Facet) override;

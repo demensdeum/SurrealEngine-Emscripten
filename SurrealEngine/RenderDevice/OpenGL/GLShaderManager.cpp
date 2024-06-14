@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include "Shaders/GLDrawTileShaders.h"
-#include "Shaders/GLDrawComplexSurfaceShaders.h"
+#include "Shaders/GLDraw3DShaders.h"
 
 GLShaderManager::GLShaderManager()
 {

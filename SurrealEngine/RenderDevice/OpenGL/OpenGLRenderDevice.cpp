@@ -16,15 +16,12 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 
-float OpenGLRenderDevice::GLOBAL_CAMERA_X = 0;
-float OpenGLRenderDevice::GLOBAL_CAMERA_Y = 0;
-float OpenGLRenderDevice::GLOBAL_CAMERA_Z = 0;
+float Aspect = 0.0f;
+float RProjZ = 0.0f;
+float RFX2 = 0.0f;
+float RFY2 = 0.0f;
+mat4 objectToProjection;
 
-float OpenGLRenderDevice::GLOBAL_CAMERA_ROTATION_X = 0;
-float OpenGLRenderDevice::GLOBAL_CAMERA_ROTATION_Y = 0;
-float OpenGLRenderDevice::GLOBAL_CAMERA_ROTATION_Z = 0;
-
-auto referenceSurface = SDL_LoadBMP("test_texture.bmp"); // must be 24-bit color pallete
 
 SDL_Surface* duplicateSurface(SDL_Surface* original) {
     if (!original) {
@@ -399,15 +396,8 @@ glm::mat4 filllGLMMat4(const mat4 &source) {
     return result;
 }
 
-float hackY = 0;
-
 void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Surface, FSurfaceFacet& Facet)
 {
-	// std::cout << "OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Surface, FSurfaceFacet& Facet)" << std::endl;
-	// std::cout << "FSurfaceFacet facet vertex count: " << Facet.VertexCount << std::endl;
-
-
-
 	auto textureWidth = Surface.Texture->Mips[0].Width;
 	auto textureHeight = Surface.Texture->Mips[0].Height;
 
@@ -417,10 +407,6 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Sur
                                                 24, 
                                                 SDL_PIXELFORMAT_RGB24
 												);
-
-	printTTransform("DrawComplexSurface : Frame->ObjectToWorld", filllGLMMat4(Frame->ObjectToWorld));
-	printTTransform("DrawComplexSurface : Frame->Frame->WorldToView", filllGLMMat4(Frame->WorldToView));
-	printTTransform("DrawComplexSurface : Frame->Projection", filllGLMMat4(Frame->Projection));	
 
 	auto pts = Facet.Vertices;
 	uint32_t vcount = Facet.VertexCount;
@@ -445,17 +431,175 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Sur
 		indicesVector.push_back(i);
 	}
 
-	//auto surface = duplicateSurface(referenceSurface);
+    Vertex *vertices = verticesVector.data();
+    GLuint *indices = indicesVector.data();
 
-	// verticesVector.clear();
-	// verticesVector.push_back(Vertexxx(-1, -1, -3));
-	// verticesVector.push_back(Vertexxx(0, 1, -3));
-	// verticesVector.push_back(Vertexxx(1, -1, -3));
+	GLsizei verticesSize = sizeof(Vertex) * verticesVector.size();
+	GLsizei indicesSize = sizeof(GLuint) * indicesVector.size(); 
+	GLsizei indicesCount = indicesVector.size();
 
-	// indicesVector.clear();
-	// indicesVector.push_back(0);
-	// indicesVector.push_back(1);
-	// indicesVector.push_back(2);
+	GLuint shader_program = Shaders->shaders[DrawComplexSurfaceShader]->ProgramID;
+	GLint pos = glGetAttribLocation(shader_program, "vertex");
+
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
+
+	GLuint vbo, indexBuffer;
+
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
+
+    glGenBuffers(1, &indexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesSize, indices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
+    glEnableVertexAttribArray(pos);
+
+    glUseProgram(shader_program);
+
+    auto projectionMatrixUniform = glGetUniformLocation(shader_program, "objectToProjectionMatrix");
+    glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, (const GLfloat *) &objectToProjection);
+
+	glActiveTexture(GL_TEXTURE0);
+
+    GLint uvSlot = glGetAttribLocation(shader_program, "uvIn");
+    glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) (sizeof(Vertex::Position)));
+    glEnableVertexAttribArray(uvSlot);
+
+	if (surface == nullptr) {
+		std::cout << "CANT LOAD TEXT_TEXTURE!!!" << std::endl;
+		exit(1);
+	}
+
+    auto surfaceLength = surface->w * surface->h * 3;
+
+    // swap bgr -> rgb
+
+    for (auto i = 0; i < surfaceLength; i += 3) {
+
+        auto pixels = (Uint8 *) surface->pixels;
+
+        auto blueComponent = pixels[i];
+        auto greenComponent = pixels[i + 1];
+        auto redComponent = pixels[i + 2];
+
+        pixels[i] = redComponent;
+        pixels[i + 1] = greenComponent;
+        pixels[i + 2] = blueComponent;
+
+    }
+
+    auto palleteMode = GL_RGB;
+
+    GLuint textureBinding;
+    glGenTextures(1, &textureBinding);
+    glBindTexture(GL_TEXTURE_2D, textureBinding);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	auto miplevel = 0;
+	{
+		auto& mipmap = Surface.Texture->Mips[0];
+
+		uint8_t* mipmapData = mipmap.Data.data();
+		GLuint textureFormat = TextureFormatToGL(Surface.Texture->Format);
+
+		if (textureFormat >= GL_COMPRESSED_RGBA_S3TC_DXT1_EXT && textureFormat <= GL_COMPRESSED_RGBA_S3TC_DXT5_EXT)
+		{
+			glCompressedTexImage2D(GL_TEXTURE_2D, miplevel, textureFormat, mipmap.Width, mipmap.Height, 0, 0, mipmapData);
+		}
+		else
+		{
+			if (Surface.Texture->Format == TextureFormat::P8)
+			{
+				// Convert P8 to RGBA32
+				auto converted_data = P8_Convert(Surface.Texture, miplevel);
+				mipmapData = (uint8_t*)converted_data.data();
+
+				int cursor = 0;
+				for (auto i = 0; i < textureWidth * textureHeight * 4; i += 4) {
+
+					auto surfacePixels = (Uint8 *) surface->pixels;
+
+					auto pixels = mipmapData;
+
+					
+					auto redComponent = pixels[i];
+					auto greenComponent = pixels[i + 1];
+					auto blueComponent = pixels[i + 2];
+
+					surfacePixels[cursor] = redComponent;
+					surfacePixels[cursor + 1] = greenComponent;
+					surfacePixels[cursor + 2] = blueComponent;
+
+					cursor += 3;
+				}			
+
+			}
+			
+			//glTexImage2D(GL_TEXTURE_2D, miplevel, textureFormat, mipmap.Width, mipmap.Height, 0, textureFormat, GL_UNSIGNED_BYTE, mipmapData);
+		}
+	}
+	glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
+
+	//glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
+    
+	glActiveTexture(GL_TEXTURE0);
+
+    SDL_FreeSurface(surface);
+    //glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    GLint textureSlot = glGetUniformLocation(shader_program, "texture");
+    glUniform1i(textureSlot, 0);
+
+    glDrawElements(
+		GL_TRIANGLE_FAN, 
+		indicesCount,
+        GL_UNSIGNED_INT, 
+		0
+	);
+
+    glDeleteBuffers(1, &vbo);
+    glDeleteBuffers(1, &indexBuffer);
+    glDeleteTextures(1, &textureBinding);	
+}
+
+void OpenGLRenderDevice::DrawGouraudPolygon(FSceneNode* Frame, FTextureInfo& Info, const GouraudVertex* Pts, int NumPts, uint32_t PolyFlags)
+{
+	return;
+	auto textureWidth = Info.Mips[0].Width;
+	auto textureHeight = Info.Mips[0].Height;
+
+	auto surface = SDL_CreateRGBSurfaceWithFormat(0, 
+                                                textureWidth, 
+                                            	textureHeight, 
+                                                24, 
+                                                SDL_PIXELFORMAT_RGB24
+												);
+
+	auto pts = Pts;
+	uint32_t vcount = NumPts;
+
+	std::vector<Vertex> verticesVector;
+	std::vector<GLuint> indicesVector;
+
+	for (uint32_t i = 0; i < vcount; i++)
+	{
+		vec3 point = pts->Point[i];
+		float u = dot(pts->UV.x, point);
+		float v = dot(pts->UV.y, point);
+
+		Vertex vertex;
+		vertex.Position[0] = point.x;
+		vertex.Position[1] = point.y;
+		vertex.Position[2] = point.z;
+		vertex.TextureUV[0] = u;
+		vertex.TextureUV[1] = v;
+
+		verticesVector.push_back(vertex);
+		indicesVector.push_back(i);
+	}
 
     Vertex *vertices = verticesVector.data();
     GLuint *indices = indicesVector.data();
@@ -503,16 +647,6 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Sur
 	//printTransform(modelMatrix);
 
 	auto viewMatrix = glm::mat4(1);
-	
-	viewMatrix = glm::translate(viewMatrix, glm::vec3(GLOBAL_CAMERA_X, GLOBAL_CAMERA_Y, GLOBAL_CAMERA_Z));
-
-	hackY = 2;
-
-    viewMatrix = glm::rotate(viewMatrix, GLOBAL_CAMERA_ROTATION_Y + hackY, glm::vec3(0.f, 1.f, 0.f));
-    viewMatrix = glm::rotate(viewMatrix, GLOBAL_CAMERA_ROTATION_X, glm::vec3(1.f, 0.f, 0.f));
-    viewMatrix = glm::rotate(viewMatrix, GLOBAL_CAMERA_ROTATION_Z, glm::vec3(0.f, 0.f, 1.f));
-
-	std::cout << "cameraRotationHackY: " << hackY << std::endl;
 
 	//auto viewMatrix = glm::mat4(1);
     //auto viewMatrix = filllGLMMat4(Frame->WorldToView);
@@ -560,10 +694,10 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Sur
 
 	auto miplevel = 0;
 	{
-		auto& mipmap = Surface.Texture->Mips[0];
+		auto& mipmap = Info.Mips[0];
 
 		uint8_t* mipmapData = mipmap.Data.data();
-		GLuint textureFormat = TextureFormatToGL(Surface.Texture->Format);
+		GLuint textureFormat = TextureFormatToGL(Info.Format);
 
 		if (textureFormat >= GL_COMPRESSED_RGBA_S3TC_DXT1_EXT && textureFormat <= GL_COMPRESSED_RGBA_S3TC_DXT5_EXT)
 		{
@@ -571,10 +705,10 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Sur
 		}
 		else
 		{
-			if (Surface.Texture->Format == TextureFormat::P8)
+			if (Info.Format == TextureFormat::P8)
 			{
 				// Convert P8 to RGBA32
-				auto converted_data = P8_Convert(Surface.Texture, miplevel);
+				auto converted_data = P8_Convert(&Info, miplevel);
 				mipmapData = (uint8_t*)converted_data.data();
 
 				int cursor = 0;
@@ -603,12 +737,6 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Sur
 	}
 	glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
 
-
-
-
-
-
-
 	//glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
     
 	glActiveTexture(GL_TEXTURE0);
@@ -621,146 +749,6 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode* Frame, FSurfaceInfo& Sur
 
     glDrawElements(
 		GL_TRIANGLE_FAN, 
-		indicesCount,
-        GL_UNSIGNED_INT, 
-		0
-	);
-
-    glDeleteBuffers(1, &vbo);
-    glDeleteBuffers(1, &indexBuffer);
-    glDeleteTextures(1, &textureBinding);	
-}
-
-void OpenGLRenderDevice::DrawGouraudPolygon(FSceneNode* Frame, FTextureInfo& Info, const GouraudVertex* Pts, int NumPts, uint32_t PolyFlags)
-{
-
-	std::cout << "OpenGLRenderDevice::DrawModel(FSceneNode *Frame, UModel *model)" << std::endl;
-
-	std::vector<Vertex> verticesVector;
-	std::vector<GLuint> indicesVector;
-
-	auto surface = duplicateSurface(referenceSurface);
-
-
-	if (NumPts < 3) {
-		return;
-	}
-
-	for (int i = 0; i < NumPts; i++) {
-		indicesVector.push_back(verticesVector.size());
-		verticesVector.push_back(Vertexxx(Pts->Point.x, Pts->Point.y, Pts->Point.z));
-	}
-
-	//indicesVector = triangleIndicesToLines(indicesVector);
-
-    Vertex *vertices = verticesVector.data();
-    GLuint *indices = indicesVector.data();
-
-	GLsizei verticesSize = sizeof(Vertex) * verticesVector.size();
-	GLsizei indicesSize = sizeof(GLuint) * indicesVector.size(); 
-	GLsizei indicesCount = indicesVector.size();
-
-	GLuint shader_program = Shaders->shaders[DrawComplexSurfaceShader]->ProgramID;
-	GLint pos = glGetAttribLocation(shader_program, "vertex");
-
-    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_BLEND);
-
-	float width = 1920;
-	float height = 1080;
-	glViewport(0, 0, width, height);
-
-	GLuint vbo, indexBuffer;
-
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
-
-    glGenBuffers(1, &indexBuffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesSize, indices, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
-    glEnableVertexAttribArray(pos);
-
-    glUseProgram(shader_program);
-
-	//glm::mat4 projectionMatrix = glm::mat4(1);
-    //glm::mat4 projectionMatrix = glm::perspective(45.0f, float(float(width) / float(height)), 0.0001f, 800.0f);
-	glm::mat4 projectionMatrix = filllGLMMat4(Frame->Projection);
-	auto projectionMatrixPtr = glm::value_ptr(projectionMatrix);
-    auto projectionMatrixUniform = glGetUniformLocation(shader_program, "projectionMatrix");
-    glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, projectionMatrixPtr);
-
-	auto modelMatrix = glm::mat4(1);
-	//glm::mat4 modelMatrix = filllGLMMat4(Frame->ObjectToWorld);
-	auto modelMatrixPtr = glm::value_ptr(modelMatrix);
-	auto modelMatrixUniform = glGetUniformLocation(shader_program, "modelMatrix");
-    glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, modelMatrixPtr);
-
-	//printTransform(modelMatrix);
-
-	auto viewMatrix = glm::mat4(1);
-	
-	viewMatrix = glm::translate(viewMatrix, glm::vec3(GLOBAL_CAMERA_X, GLOBAL_CAMERA_Y, GLOBAL_CAMERA_Z));
-
-    viewMatrix = glm::rotate(viewMatrix, GLOBAL_CAMERA_ROTATION_Y, glm::vec3(0.f, 1.f, 0.f));
-    viewMatrix = glm::rotate(viewMatrix, GLOBAL_CAMERA_ROTATION_X, glm::vec3(1.f, 0.f, 0.f));
-    //viewMatrix = glm::rotate(viewMatrix, GLOBAL_CAMERA_ROTATION_Z, glm::vec3(0.f, 0.f, 1.f));
-
-    //auto viewMatrix = filllGLMMat4(Frame->WorldToView);
-	auto viewMatrixPtr = glm::value_ptr(viewMatrix);
-    auto viewMatrixUniform = glGetUniformLocation(shader_program, "viewMatrix");
-    glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, viewMatrixPtr);
-
-	glActiveTexture(GL_TEXTURE0);
-
-    GLint uvSlot = glGetAttribLocation(shader_program, "uvIn");
-    glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) (sizeof(Vertex::Position)));
-    glEnableVertexAttribArray(uvSlot);
-
-	if (surface == nullptr) {
-		std::cout << "CANT LOAD TEXT_TEXTURE!!!" << std::endl;
-		exit(1);
-	}
-
-    auto surfaceLength = surface->w * surface->h * 3;
-
-    // swap bgr -> rgb
-
-    for (auto i = 0; i < surfaceLength; i += 3) {
-
-        auto pixels = (Uint8 *) surface->pixels;
-
-        auto blueComponent = pixels[i];
-        auto greenComponent = pixels[i + 1];
-        auto redComponent = pixels[i + 2];
-
-        pixels[i] = redComponent;
-        pixels[i + 1] = greenComponent;
-        pixels[i + 2] = blueComponent;
-
-    }
-
-    auto palleteMode = GL_RGB;
-
-    GLuint textureBinding;
-    glGenTextures(1, &textureBinding);
-    glBindTexture(GL_TEXTURE_2D, textureBinding);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-	glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
-    
-	glActiveTexture(GL_TEXTURE0);
-
-    SDL_FreeSurface(surface);
-    //glEnable(GL_DEPTH_TEST);
-    //glEnable(GL_CULL_FACE);
-    GLint textureSlot = glGetUniformLocation(shader_program, "texture");
-    glUniform1i(textureSlot, 0);
-
-    glDrawElements(
-		GL_TRIANGLES, 
 		indicesCount,
         GL_UNSIGNED_INT, 
 		0
@@ -988,23 +976,19 @@ void OpenGLRenderDevice::EndFlash()
 	//std::cout << "OpenGLRenderDevice::EndFlash()" << std::endl;
 }
 
+
 void OpenGLRenderDevice::SetSceneNode(FSceneNode* Frame)
 {
-	//std::cout << "OpenGLRenderDevice::SetSceneNode" << std::endl;
-	//DrawScene();
-
-	printTTransform("SetSceneNode(FSceneNode* Frame) : Frame->ObjectToWorld", filllGLMMat4(Frame->ObjectToWorld));
-	printTTransform("SetSceneNode(FSceneNode* Frame) : Frame->WorldToView", filllGLMMat4(Frame->WorldToView));
-	printTTransform("SetSceneNode(FSceneNode* Frame) : Frame->Projection", filllGLMMat4(Frame->Projection));	
-
 	CurrentFrame = Frame;
-
 	Aspect = Frame->FY / Frame->FX;
+	RProjZ = (float)std::tan(radians(Frame->FovAngle) * 0.5);
+	RFX2 = 2.0f * RProjZ / Frame->FX;
+	RFY2 = 2.0f * RProjZ * Aspect / Frame->FY;
 
-	// printTransform(filllGLMMat4(Frame->ObjectToWorld));
-	// printTransform(filllGLMMat4(Frame->WorldToView));
+	glViewport((float)Frame->XB, (float)Frame->YB, (float)Frame->X, (float)Frame->Y);
 
-	//glViewport(Frame->X, Frame->Y, Frame->XB, Frame->YB);
+	objectToProjection = mat4::frustum(-RProjZ, RProjZ, -Aspect * RProjZ, Aspect * RProjZ, 1.0f, 32768.0f, handedness::left, clipzrange::zero_positive_w);
+	objectToProjection = objectToProjection * Frame->WorldToView * Frame->ObjectToWorld;
 }
 
 void OpenGLRenderDevice::PrecacheTexture(FTextureInfo& Info, uint32_t PolyFlags)
@@ -1023,141 +1007,4 @@ bool OpenGLRenderDevice::SupportsTextureFormat(TextureFormat Format)
 void OpenGLRenderDevice::UpdateTextureRect(FTextureInfo& Info, int U, int V, int UL, int VL)
 {
 	std::cout << "OpenGLRenderDevice::UpdateTextureRect" << std::endl;
-}
-
-void OpenGLRenderDevice::DrawModel(FSceneNode *Frame, UModel *model)
-{
-	std::cout << "OpenGLRenderDevice::DrawModel(FSceneNode *Frame, UModel *model)" << std::endl;
-
-	std::vector<Vertex> verticesVector;
-	std::vector<GLuint> indicesVector;
-
-	auto surface = duplicateSurface(referenceSurface);
-
-
-	if (model->Points.size() < 3) {
-		return;
-	}
-
-	for (auto point : model->Points) {
-		indicesVector.push_back(verticesVector.size());
-		verticesVector.push_back(Vertexxx(point.x, point.y, point.z));
-	}
-
-    Vertex *vertices = verticesVector.data();
-    GLuint *indices = indicesVector.data();
-
-	GLsizei verticesSize = sizeof(Vertex) * verticesVector.size();
-	GLsizei indicesSize = sizeof(GLuint) * indicesVector.size(); 
-	GLsizei indicesCount = indicesVector.size();
-
-	GLuint shader_program = Shaders->shaders[DrawComplexSurfaceShader]->ProgramID;
-	GLint pos = glGetAttribLocation(shader_program, "vertex");
-
-    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_BLEND);
-
-	float width = 1920;
-	float height = 1080;
-	glViewport(0, 0, width, height);
-
-	GLuint vbo, indexBuffer;
-
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
-
-    glGenBuffers(1, &indexBuffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesSize, indices, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
-    glEnableVertexAttribArray(pos);
-
-    glUseProgram(shader_program);
-
-	//glm::mat4 projectionMatrix = glm::mat4(1);
-    //glm::mat4 projectionMatrix = glm::perspective(45.0f, float(float(width) / float(height)), 0.0001f, 800.0f);
-	glm::mat4 projectionMatrix = filllGLMMat4(Frame->Projection);
-	auto projectionMatrixPtr = glm::value_ptr(projectionMatrix);
-    auto projectionMatrixUniform = glGetUniformLocation(shader_program, "projectionMatrix");
-    glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, projectionMatrixPtr);
-
-	auto modelMatrix = glm::mat4(1);
-	//glm::mat4 modelMatrix = filllGLMMat4(Frame->ObjectToWorld);
-	auto modelMatrixPtr = glm::value_ptr(modelMatrix);
-	auto modelMatrixUniform = glGetUniformLocation(shader_program, "modelMatrix");
-    glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, modelMatrixPtr);
-
-	//printTransform(modelMatrix);
-
-	auto viewMatrix = glm::mat4(1);
-	
-	viewMatrix = glm::translate(viewMatrix, glm::vec3(GLOBAL_CAMERA_X, GLOBAL_CAMERA_Y, GLOBAL_CAMERA_Z));
-
-    viewMatrix = glm::rotate(viewMatrix, GLOBAL_CAMERA_ROTATION_Y, glm::vec3(0.f, 1.f, 0.f));
-    viewMatrix = glm::rotate(viewMatrix, GLOBAL_CAMERA_ROTATION_X, glm::vec3(1.f, 0.f, 0.f));
-    viewMatrix = glm::rotate(viewMatrix, GLOBAL_CAMERA_ROTATION_Z, glm::vec3(0.f, 0.f, 1.f));
-
-    //auto viewMatrix = filllGLMMat4(Frame->WorldToView);
-	auto viewMatrixPtr = glm::value_ptr(viewMatrix);
-    auto viewMatrixUniform = glGetUniformLocation(shader_program, "viewMatrix");
-    glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, viewMatrixPtr);
-
-	glActiveTexture(GL_TEXTURE0);
-
-    GLint uvSlot = glGetAttribLocation(shader_program, "uvIn");
-    glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) (sizeof(Vertex::Position)));
-    glEnableVertexAttribArray(uvSlot);
-
-	if (surface == nullptr) {
-		std::cout << "CANT LOAD TEXT_TEXTURE!!!" << std::endl;
-		exit(1);
-	}
-
-    auto surfaceLength = surface->w * surface->h * 3;
-
-    // swap bgr -> rgb
-
-    for (auto i = 0; i < surfaceLength; i += 3) {
-
-        auto pixels = (Uint8 *) surface->pixels;
-
-        auto blueComponent = pixels[i];
-        auto greenComponent = pixels[i + 1];
-        auto redComponent = pixels[i + 2];
-
-        pixels[i] = redComponent;
-        pixels[i + 1] = greenComponent;
-        pixels[i + 2] = blueComponent;
-
-    }
-
-    auto palleteMode = GL_RGB;
-
-    GLuint textureBinding;
-    glGenTextures(1, &textureBinding);
-    glBindTexture(GL_TEXTURE_2D, textureBinding);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-	glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
-    
-	glActiveTexture(GL_TEXTURE0);
-
-    SDL_FreeSurface(surface);
-    //glEnable(GL_DEPTH_TEST);
-    //glEnable(GL_CULL_FACE);
-    GLint textureSlot = glGetUniformLocation(shader_program, "texture");
-    glUniform1i(textureSlot, 0);
-
-    glDrawElements(
-		GL_TRIANGLES, 
-		indicesCount,
-        GL_UNSIGNED_INT, 
-		0
-	);
-
-    glDeleteBuffers(1, &vbo);
-    glDeleteBuffers(1, &indexBuffer);
-    glDeleteTextures(1, &textureBinding);	
 }
