@@ -66,6 +66,11 @@ public:
 	void UpdateTextureRect(FTextureInfo& Info, int U, int V, int UL, int VL) override;
 private:
 
+    GLuint fbo;
+    GLuint renderingTexture;
+
+	void initializeAndBindRenderingTexture();
+	void removeRenderingTexture();
 	void drawComplexSurfaceToTexture(FSurfaceInfo &Surface, FSurfaceFacet &Facet);
 	void drawComplexSurfaceTextureOnScreen();
 

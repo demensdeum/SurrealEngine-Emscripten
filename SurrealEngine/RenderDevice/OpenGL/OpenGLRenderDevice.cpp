@@ -285,6 +285,7 @@ bool OpenGLRenderDevice::Exec(std::string Cmd, OutputDevice &Ar)
 
 void OpenGLRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)
 {
+	initializeAndBindRenderingTexture();
 	std::cout << "OpenGLRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)" << std::endl;
 	glClearColor(0.2f, 0.35f, 0.3f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -299,6 +300,7 @@ void OpenGLRenderDevice::Unlock(bool Blit)
 	{
 		drawComplexSurfaceTextureOnScreen();
 		SDL_GL_SwapWindow(SDL2Window::currentWindow);
+		removeRenderingTexture();
 	}
 }
 
@@ -581,29 +583,56 @@ void OpenGLRenderDevice::drawComplexSurfaceToTexture(FSurfaceInfo &Surface, FSur
 	glDeleteTextures(1, &textureBinding);
 }
 
+void OpenGLRenderDevice::initializeAndBindRenderingTexture() {
+    auto textureWidth = 1920;
+    auto textureHeight = 1080;
+
+	glGenFramebuffers(1, &fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+	glGenTextures(1, &renderingTexture);
+	glBindTexture(GL_TEXTURE_2D, renderingTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, textureWidth, textureHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, renderingTexture, 0);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		std::cerr << "Error: Framebuffer is not complete!" << std::endl;
+		exit(1);
+	}
+}
+
+void OpenGLRenderDevice::removeRenderingTexture() {
+	glDeleteBuffers(1, &fbo);
+	glDeleteTextures(1, &renderingTexture);
+}
+
 void OpenGLRenderDevice::drawComplexSurfaceTextureOnScreen() {
 
-	auto wallpaper = SDL_LoadBMP("wallpaper.bmp");
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	auto textureWidth = wallpaper->w;
-	auto textureHeight = wallpaper->h;
+	// auto wallpaper = SDL_LoadBMP("wallpaper.bmp");
 
-	auto surface = wallpaper;
+	// auto textureWidth = wallpaper->w;
+	// auto textureHeight = wallpaper->h;
 
-	const GLfloat Z_COORD = 2.f;
+//	auto surface = wallpaper;
+
+	const GLfloat Z_COORD = 1.f;
 
 	const GLfloat ASPECT_RATIO = 16.0f / 9.0f;
 
 	// Создание вектора с вершинами прямоугольника, учитывая соотношение сторон
 	std::vector<Vertex> verticesVector = {
-		// Позиции                            // UV-координаты
-		{{-0.5f * ASPECT_RATIO,  0.5f, Z_COORD}, {0.0f, 1.0f}},  // Верхний левый угол
-		{{ 0.5f * ASPECT_RATIO, -0.5f, Z_COORD}, {1.0f, 0.0f}},  // Нижний правый угол
-		{{-0.5f * ASPECT_RATIO, -0.5f, Z_COORD}, {0.0f, 0.0f}},  // Нижний левый угол
+		// Позиции                            // UV-координаты (вертикальный flip)
+		{{-0.5f * ASPECT_RATIO,  0.5f, Z_COORD}, {0.0f, 0.0f}},  // Верхний левый угол
+		{{ 0.5f * ASPECT_RATIO, -0.5f, Z_COORD}, {1.0f, 1.0f}},  // Нижний правый угол
+		{{-0.5f * ASPECT_RATIO, -0.5f, Z_COORD}, {0.0f, 1.0f}},  // Нижний левый угол
 
-		{{-0.5f * ASPECT_RATIO,  0.5f, Z_COORD}, {0.0f, 1.0f}},  // Верхний левый угол
-		{{ 0.5f * ASPECT_RATIO,  0.5f, Z_COORD}, {1.0f, 1.0f}},  // Верхний правый угол
-		{{ 0.5f * ASPECT_RATIO, -0.5f, Z_COORD}, {1.0f, 0.0f}}   // Нижний правый угол
+		{{-0.5f * ASPECT_RATIO,  0.5f, Z_COORD}, {0.0f, 0.0f}},  // Верхний левый угол
+		{{ 0.5f * ASPECT_RATIO,  0.5f, Z_COORD}, {1.0f, 0.0f}},  // Верхний правый угол
+		{{ 0.5f * ASPECT_RATIO, -0.5f, Z_COORD}, {1.0f, 1.0f}}   // Нижний правый угол
 	};
 
 	Vertex *vertices = verticesVector.data();
@@ -636,15 +665,15 @@ void OpenGLRenderDevice::drawComplexSurfaceTextureOnScreen() {
 	glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)(sizeof(Vertex::Position)));
 	glEnableVertexAttribArray(uvSlot);
 
-	if (surface == nullptr)
-	{
-		std::cout << "CANT LOAD TEXT_TEXTURE!!!" << std::endl;
-		exit(1);
-	}
+	// if (surface == nullptr)
+	// {
+	// 	std::cout << "CANT LOAD TEXT_TEXTURE!!!" << std::endl;
+	// 	exit(1);
+	// }
 
-	auto surfaceLength = surface->w * surface->h * 3;
+	// auto surfaceLength = surface->w * surface->h * 3;
 
-	swapColors(surfaceLength, surface);
+	// swapColors(surfaceLength, surface);
 
 	auto palleteMode = GL_RGB;
 
@@ -653,13 +682,15 @@ void OpenGLRenderDevice::drawComplexSurfaceTextureOnScreen() {
 	glBindTexture(GL_TEXTURE_2D, textureBinding);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
+//	glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
 
 	glActiveTexture(GL_TEXTURE0);
 
-	SDL_FreeSurface(surface);
+//	SDL_FreeSurface(surface);
 	// glEnable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
+
+	glBindTexture(GL_TEXTURE_2D, renderingTexture);
 
 	GLint textureSlot = glGetUniformLocation(shader_program, "texture");
 	glUniform1i(textureSlot, 0);
