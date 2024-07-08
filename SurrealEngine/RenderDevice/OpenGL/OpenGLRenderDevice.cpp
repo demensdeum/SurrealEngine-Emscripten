@@ -525,7 +525,7 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode *Frame, FSurfaceInfo &Sur
 		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_BLEND);
 
-		GLuint vbo, indexBuffer;
+		GLuint vbo;
 
 		glGenBuffers(1, &vbo);
 		glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -581,7 +581,6 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode *Frame, FSurfaceInfo &Sur
 		);
 
 		glDeleteBuffers(1, &vbo);
-		glDeleteBuffers(1, &indexBuffer);
 		glDeleteTextures(1, &textureBinding);
 	}
 }
