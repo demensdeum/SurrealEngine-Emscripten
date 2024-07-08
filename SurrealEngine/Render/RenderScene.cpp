@@ -224,11 +224,7 @@ void RenderSubsystem::DrawNodeSurface(const DrawNodeInfo& nodeInfo)
 	surfaceinfo.LightMap = lightmap.NumMips != 0 ? &lightmap : nullptr;
 	surfaceinfo.FogMap = fogmap.NumMips != 0 ? &fogmap : nullptr;
 
-#if RENDERING_HACK
-	((OpenGLRenderDevice*)Device)->DrawModel(&Scene.Frame, model);
-#else
 	Device->DrawComplexSurface(&Scene.Frame, surfaceinfo, facet);
-#endif
 }
 
 int RenderSubsystem::FindZoneAt(const vec3& location)

@@ -297,6 +297,7 @@ void OpenGLRenderDevice::Unlock(bool Blit)
 
 	if (Blit)
 	{
+		drawComplexSurfaceTextureOnScreen();
 		SDL_GL_SwapWindow(SDL2Window::currentWindow);
 	}
 }
@@ -497,92 +498,185 @@ void populateVertexBuffer(
 		}	
 }
 
+void OpenGLRenderDevice::drawComplexSurfaceToTexture(FSurfaceInfo &Surface, FSurfaceFacet &Facet) {
+	auto textureWidth = Surface.Texture->Mips[0].Width;
+	auto textureHeight = Surface.Texture->Mips[0].Height;
+
+	auto surface = SDL_CreateRGBSurfaceWithFormat(0,
+													textureWidth,
+													textureHeight,
+													24,
+													SDL_PIXELFORMAT_RGB24);
+
+	std::vector<Vertex> verticesVector;
+
+	populateVertexBuffer(&verticesVector, Facet);
+
+	Vertex *vertices = verticesVector.data();
+
+	GLsizei verticesSize = sizeof(Vertex) * verticesVector.size();
+
+	GLuint shader_program = Shaders->shaders[DrawComplexSurfaceShader]->ProgramID;
+	GLint pos = glGetAttribLocation(shader_program, "vertex");
+
+	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_BLEND);
+
+	GLuint vbo;
+
+	glGenBuffers(1, &vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
+
+	glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
+	glEnableVertexAttribArray(pos);
+
+	glUseProgram(shader_program);
+
+	auto projectionMatrixUniform = glGetUniformLocation(shader_program, "objectToProjectionMatrix");
+	glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, (const GLfloat *)&objectToProjection);
+
+	glActiveTexture(GL_TEXTURE0);
+
+	GLint uvSlot = glGetAttribLocation(shader_program, "uvIn");
+	glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)(sizeof(Vertex::Position)));
+	glEnableVertexAttribArray(uvSlot);
+
+	if (surface == nullptr)
+	{
+		std::cout << "CANT LOAD TEXT_TEXTURE!!!" << std::endl;
+		exit(1);
+	}
+
+	auto surfaceLength = surface->w * surface->h * 3;
+
+	swapColors(surfaceLength, surface);
+
+	auto palleteMode = GL_RGB;
+
+	GLuint textureBinding;
+	glGenTextures(1, &textureBinding);
+	glBindTexture(GL_TEXTURE_2D, textureBinding);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	generateMipMap(Surface, surface);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
+
+	glActiveTexture(GL_TEXTURE0);
+
+	SDL_FreeSurface(surface);
+	// glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	GLint textureSlot = glGetUniformLocation(shader_program, "texture");
+	glUniform1i(textureSlot, 0);
+
+	glDrawArrays(
+		GL_TRIANGLE_FAN,
+		0,
+		verticesVector.size()
+	);
+
+	glDeleteBuffers(1, &vbo);
+	glDeleteTextures(1, &textureBinding);
+}
+
+void OpenGLRenderDevice::drawComplexSurfaceTextureOnScreen() {
+
+	auto wallpaper = SDL_LoadBMP("wallpaper.bmp");
+
+	auto textureWidth = wallpaper->w;
+	auto textureHeight = wallpaper->h;
+
+	auto surface = wallpaper;
+
+	const GLfloat Z_COORD = 2.f;
+
+	const GLfloat ASPECT_RATIO = 16.0f / 9.0f;
+
+	// Создание вектора с вершинами прямоугольника, учитывая соотношение сторон
+	std::vector<Vertex> verticesVector = {
+		// Позиции                            // UV-координаты
+		{{-0.5f * ASPECT_RATIO,  0.5f, Z_COORD}, {0.0f, 1.0f}},  // Верхний левый угол
+		{{ 0.5f * ASPECT_RATIO, -0.5f, Z_COORD}, {1.0f, 0.0f}},  // Нижний правый угол
+		{{-0.5f * ASPECT_RATIO, -0.5f, Z_COORD}, {0.0f, 0.0f}},  // Нижний левый угол
+
+		{{-0.5f * ASPECT_RATIO,  0.5f, Z_COORD}, {0.0f, 1.0f}},  // Верхний левый угол
+		{{ 0.5f * ASPECT_RATIO,  0.5f, Z_COORD}, {1.0f, 1.0f}},  // Верхний правый угол
+		{{ 0.5f * ASPECT_RATIO, -0.5f, Z_COORD}, {1.0f, 0.0f}}   // Нижний правый угол
+	};
+
+	Vertex *vertices = verticesVector.data();
+
+	GLsizei verticesSize = sizeof(Vertex) * verticesVector.size();
+
+	GLuint shader_program = Shaders->shaders[DrawComplexSurfaceShader]->ProgramID;
+	GLint pos = glGetAttribLocation(shader_program, "vertex");
+
+	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_BLEND);
+
+	GLuint vbo;
+
+	glGenBuffers(1, &vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
+
+	glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
+	glEnableVertexAttribArray(pos);
+
+	glUseProgram(shader_program);
+
+	auto projectionMatrixUniform = glGetUniformLocation(shader_program, "objectToProjectionMatrix");
+	glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, (const GLfloat *)&objectToProjection);
+
+	glActiveTexture(GL_TEXTURE0);
+
+	GLint uvSlot = glGetAttribLocation(shader_program, "uvIn");
+	glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)(sizeof(Vertex::Position)));
+	glEnableVertexAttribArray(uvSlot);
+
+	if (surface == nullptr)
+	{
+		std::cout << "CANT LOAD TEXT_TEXTURE!!!" << std::endl;
+		exit(1);
+	}
+
+	auto surfaceLength = surface->w * surface->h * 3;
+
+	swapColors(surfaceLength, surface);
+
+	auto palleteMode = GL_RGB;
+
+	GLuint textureBinding;
+	glGenTextures(1, &textureBinding);
+	glBindTexture(GL_TEXTURE_2D, textureBinding);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
+
+	glActiveTexture(GL_TEXTURE0);
+
+	SDL_FreeSurface(surface);
+	// glEnable(GL_DEPTH_TEST);
+	glDisable(GL_CULL_FACE);
+
+	GLint textureSlot = glGetUniformLocation(shader_program, "texture");
+	glUniform1i(textureSlot, 0);
+
+	glDrawArrays(
+		GL_TRIANGLE_FAN,
+		0,
+		verticesVector.size()
+	);
+
+	glDeleteBuffers(1, &vbo);
+	glDeleteTextures(1, &textureBinding);
+}
+
 void OpenGLRenderDevice::DrawComplexSurface(FSceneNode *Frame, FSurfaceInfo &Surface, FSurfaceFacet &Facet)
 {
-	for (int i = 0; i < 2; i++)
-	{
-		auto textureWidth = Surface.Texture->Mips[0].Width;
-		auto textureHeight = Surface.Texture->Mips[0].Height;
-
-		auto surface = SDL_CreateRGBSurfaceWithFormat(0,
-													  textureWidth,
-													  textureHeight,
-													  24,
-													  SDL_PIXELFORMAT_RGB24);
-
-		std::vector<Vertex> verticesVector;
-		std::vector<GLuint> indicesVector;
-
-		populateVertexBuffer(&verticesVector, Facet);
-
-		Vertex *vertices = verticesVector.data();
-
-		GLsizei verticesSize = sizeof(Vertex) * verticesVector.size();
-
-		GLuint shader_program = Shaders->shaders[DrawComplexSurfaceShader]->ProgramID;
-		GLint pos = glGetAttribLocation(shader_program, "vertex");
-
-		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-		glEnable(GL_BLEND);
-
-		GLuint vbo;
-
-		glGenBuffers(1, &vbo);
-		glBindBuffer(GL_ARRAY_BUFFER, vbo);
-		glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
-
-		glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
-		glEnableVertexAttribArray(pos);
-
-		glUseProgram(shader_program);
-
-		auto projectionMatrixUniform = glGetUniformLocation(shader_program, "objectToProjectionMatrix");
-		glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, (const GLfloat *)&objectToProjection);
-
-		glActiveTexture(GL_TEXTURE0);
-
-		GLint uvSlot = glGetAttribLocation(shader_program, "uvIn");
-		glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)(sizeof(Vertex::Position)));
-		glEnableVertexAttribArray(uvSlot);
-
-		if (surface == nullptr)
-		{
-			std::cout << "CANT LOAD TEXT_TEXTURE!!!" << std::endl;
-			exit(1);
-		}
-
-		auto surfaceLength = surface->w * surface->h * 3;
-
-		swapColors(surfaceLength, surface);
-
-		auto palleteMode = GL_RGB;
-
-		GLuint textureBinding;
-		glGenTextures(1, &textureBinding);
-		glBindTexture(GL_TEXTURE_2D, textureBinding);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-		generateMipMap(Surface, surface);
-
-		glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
-
-		glActiveTexture(GL_TEXTURE0);
-
-		SDL_FreeSurface(surface);
-		// glEnable(GL_DEPTH_TEST);
-		glEnable(GL_CULL_FACE);
-		GLint textureSlot = glGetUniformLocation(shader_program, "texture");
-		glUniform1i(textureSlot, 0);
-
-		glDrawArrays(
-			GL_TRIANGLE_FAN,
-			0,
-			verticesVector.size()
-		);
-
-		glDeleteBuffers(1, &vbo);
-		glDeleteTextures(1, &textureBinding);
-	}
+	drawComplexSurfaceToTexture(Surface, Facet);
 }
 
 void OpenGLRenderDevice::DrawGouraudPolygon(FSceneNode *Frame, FTextureInfo &Info, const GouraudVertex *Pts, int NumPts, uint32_t PolyFlags)

@@ -65,6 +65,10 @@ public:
 	bool SupportsTextureFormat(TextureFormat Format) override;
 	void UpdateTextureRect(FTextureInfo& Info, int U, int V, int UL, int VL) override;
 private:
+
+	void drawComplexSurfaceToTexture(FSurfaceInfo &Surface, FSurfaceFacet &Facet);
+	void drawComplexSurfaceTextureOnScreen();
+
 	FSceneNode* CurrentFrame = nullptr;
 
 	float Aspect;
