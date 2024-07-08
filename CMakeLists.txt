@@ -186,7 +186,7 @@ set(SURREALCOMMON_SOURCES
 	SurrealEngine/RenderDevice/OpenGL/GLObjects.h
 	SurrealEngine/RenderDevice/OpenGL/GLShader.cpp
 	SurrealEngine/RenderDevice/OpenGL/GLShader.h
-	SurrealEngine/RenderDevice/OpenGL/Shaders/GLDrawComplexSurfaceShaders.h
+	#SurrealEngine/RenderDevice/OpenGL/Shaders/GLDrawComplexSurfaceShaders.h
 	SurrealEngine/RenderDevice/OpenGL/Shaders/GLDrawTileShaders.h
 	SurrealEngine/RenderDevice/OpenGL/GLShaderManager.cpp
 	SurrealEngine/RenderDevice/OpenGL/GLShaderManager.h
