@@ -66,14 +66,19 @@ public:
 	void UpdateTextureRect(FTextureInfo& Info, int U, int V, int UL, int VL) override;
 private:
 
-    GLuint fbo;
+	std::chrono::milliseconds renderingStartDate;
+
+	GLuint vbo; // <- Vertex Buffer
+	GLuint textureBinding; 
+
+    GLuint fbo; // <- Rectangle Frame Buffer
 	GLuint depthBufferTexture;
-    GLuint renderingTexture;
+    GLuint renderingTexture; // <- Rectangle Frame Buffer Texture
 
 	void initializeAndBindRenderingTexture();
 	void removeRenderingTexture();
 	void drawComplexSurfaceToTexture(FSurfaceInfo &Surface, FSurfaceFacet &Facet);
-	void drawComplexSurfaceTextureOnScreen();
+	void drawFramebufferTextureOnScreen();
 
 	FSceneNode* CurrentFrame = nullptr;
 

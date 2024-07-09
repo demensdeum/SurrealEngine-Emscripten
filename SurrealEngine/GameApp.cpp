@@ -43,7 +43,8 @@ int GameApp::main(std::vector<std::string> args)
 	args.push_back("SurrealEngine");
 	args.push_back("UnrealTournament");
 	//args.push_back("--url=DM-Cube-Test-Rendering.unr");
-	args.push_back("--url=DM-Deck16][.unr");
+	//args.push_back("--url=DM-Deck16][.unr");
+	args.push_back("--url=DM-Tutorial.unr");
 
 	std::cout << "DisplayBackend::TryCreateSDL2()" << std::endl;	
 	auto backend = DisplayBackend::TryCreateSDL2();

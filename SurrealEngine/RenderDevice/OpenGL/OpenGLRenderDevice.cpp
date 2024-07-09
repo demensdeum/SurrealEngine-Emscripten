@@ -250,7 +250,10 @@ bool OpenGLRenderDevice::Exec(std::string Cmd, OutputDevice &Ar)
 
 void OpenGLRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)
 {
-	//initializeAndBindRenderingTexture();
+    auto now = std::chrono::system_clock::now();
+    auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
+	renderingStartDate = now_ms.time_since_epoch();	
+
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 	std::cout << "OpenGLRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)" << std::endl;
 	glEnable(GL_DEPTH_TEST);
@@ -266,8 +269,20 @@ void OpenGLRenderDevice::Unlock(bool Blit)
 
 	if (Blit)
 	{
-		drawComplexSurfaceTextureOnScreen();
+		drawFramebufferTextureOnScreen();
 		SDL_GL_SwapWindow(SDL2Window::currentWindow);
+
+    	auto now = std::chrono::system_clock::now();
+    	auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
+		std::chrono::milliseconds renderingEndDate = now_ms.time_since_epoch();
+
+std::chrono::milliseconds duration = renderingEndDate - renderingStartDate;
+    double fps = 1000.0 / duration.count();
+
+    // Печать времени рендеринга и FPS
+    std::cout << "Rendering duration: " << duration.count() << " ms" << std::endl;
+    std::cout << "FPS: " << fps << std::endl;
+
 		//removeRenderingTexture();
 	}
 }
@@ -335,23 +350,6 @@ void generateMipMap(FSurfaceInfo &Surface, SDL_Surface *surface)
 {
 	generateMipMap(*(Surface.Texture), surface);
 }
-
-// void swapColors(int surfaceLength, SDL_Surface *surface) {
-// 	for (auto i = 0; i < surfaceLength; i += 3)
-// 	{
-
-// 		auto pixels = (Uint8 *)surface->pixels;
-
-// 		auto blueComponent = pixels[i];
-// 		auto greenComponent = pixels[i + 1];
-// 		auto redComponent = pixels[i + 2];
-
-// 		pixels[i] = redComponent;
-// 		pixels[i + 1] = greenComponent;
-// 		pixels[i + 2] = blueComponent;
-// 	}	
-// }
-
 
 inline float GetUMult(const FTextureInfo& Info) { return 1.0f / (Info.UScale * Info.USize); }
 inline float GetVMult(const FTextureInfo& Info) { return 1.0f / (Info.VScale * Info.VSize); }
@@ -455,10 +453,6 @@ void OpenGLRenderDevice::drawComplexSurfaceToTexture(FSurfaceInfo &Surface, FSur
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 
-	GLuint vbo;
-
-	glGenBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 	glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
 
 	glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
@@ -477,8 +471,8 @@ void OpenGLRenderDevice::drawComplexSurfaceToTexture(FSurfaceInfo &Surface, FSur
 
 	auto palleteMode = GL_RGB;
 
-	GLuint textureBinding;
-	glGenTextures(1, &textureBinding);
+	//GLuint textureBinding;
+	//glGenTextures(1, &textureBinding);
 	glBindTexture(GL_TEXTURE_2D, textureBinding);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
@@ -492,7 +486,17 @@ void OpenGLRenderDevice::drawComplexSurfaceToTexture(FSurfaceInfo &Surface, FSur
 
 	generateMipMap(Surface, surface);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
+	glTexImage2D(
+		GL_TEXTURE_2D, 
+		0, 
+		palleteMode, 
+		surface->w, 
+		surface->h, 
+		0, 
+		palleteMode, 
+		GL_UNSIGNED_BYTE, 
+		surface->pixels
+	);
 
 	glActiveTexture(GL_TEXTURE0);
 
@@ -505,17 +509,22 @@ void OpenGLRenderDevice::drawComplexSurfaceToTexture(FSurfaceInfo &Surface, FSur
 		verticesVector.size()
 	);
 
-	glDeleteBuffers(1, &vbo);
-	glDeleteTextures(1, &textureBinding);
+	//glDeleteBuffers(1, &vbo);
+	//glDeleteTextures(1, &textureBinding);
 }
 
 void OpenGLRenderDevice::initializeAndBindRenderingTexture() {
 	
+	glGenBuffers(1, &vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
     auto textureWidth = 1920;
     auto textureHeight = 1080;
 
 	glGenFramebuffers(1, &fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+	glGenTextures(1, &textureBinding);
 
 	glGenTextures(1, &renderingTexture);
 	glBindTexture(GL_TEXTURE_2D, renderingTexture);
@@ -541,36 +550,29 @@ void OpenGLRenderDevice::initializeAndBindRenderingTexture() {
 }
 
 void OpenGLRenderDevice::removeRenderingTexture() {
+	glDeleteBuffers(1, &vbo);
 	glDeleteBuffers(1, &fbo);
+	glDeleteTextures(1, &textureBinding);
 	glDeleteTextures(1, &depthBufferTexture);
 	glDeleteTextures(1, &renderingTexture);
 }
 
-void OpenGLRenderDevice::drawComplexSurfaceTextureOnScreen() {
+void OpenGLRenderDevice::drawFramebufferTextureOnScreen() {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glDisable(GL_DEPTH_TEST);
-
-	// auto wallpaper = SDL_LoadBMP("wallpaper.bmp");
-
-	// auto textureWidth = wallpaper->w;
-	// auto textureHeight = wallpaper->h;
-
-//	auto surface = wallpaper;
 
 	const GLfloat Z_COORD = 0.89f;
 
 	const GLfloat ASPECT_RATIO = 16.0f / 9.0f;
 
-	// Создание вектора с вершинами прямоугольника, учитывая соотношение сторон
 	std::vector<Vertex> verticesVector = {
-		// Позиции                            // UV-координаты (вертикальный flip)
-		{{-0.5f * ASPECT_RATIO,  0.5f, Z_COORD}, {0.0f, 0.0f}},  // Верхний левый угол
-		{{ 0.5f * ASPECT_RATIO, -0.5f, Z_COORD}, {1.0f, 1.0f}},  // Нижний правый угол
-		{{-0.5f * ASPECT_RATIO, -0.5f, Z_COORD}, {0.0f, 1.0f}},  // Нижний левый угол
+		{{-0.5f * ASPECT_RATIO,  0.5f, Z_COORD}, {0.0f, 0.0f}},
+		{{ 0.5f * ASPECT_RATIO, -0.5f, Z_COORD}, {1.0f, 1.0f}},
+		{{-0.5f * ASPECT_RATIO, -0.5f, Z_COORD}, {0.0f, 1.0f}},
 
-		{{-0.5f * ASPECT_RATIO,  0.5f, Z_COORD}, {0.0f, 0.0f}},  // Верхний левый угол
-		{{ 0.5f * ASPECT_RATIO,  0.5f, Z_COORD}, {1.0f, 0.0f}},  // Верхний правый угол
-		{{ 0.5f * ASPECT_RATIO, -0.5f, Z_COORD}, {1.0f, 1.0f}}   // Нижний правый угол
+		{{-0.5f * ASPECT_RATIO,  0.5f, Z_COORD}, {0.0f, 0.0f}},
+		{{ 0.5f * ASPECT_RATIO,  0.5f, Z_COORD}, {1.0f, 0.0f}},
+		{{ 0.5f * ASPECT_RATIO, -0.5f, Z_COORD}, {1.0f, 1.0f}}
 	};
 
 	Vertex *vertices = verticesVector.data();
@@ -583,9 +585,6 @@ void OpenGLRenderDevice::drawComplexSurfaceTextureOnScreen() {
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 
-	GLuint vbo;
-
-	glGenBuffers(1, &vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 	glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
 
@@ -603,30 +602,14 @@ void OpenGLRenderDevice::drawComplexSurfaceTextureOnScreen() {
 	glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)(sizeof(Vertex::Position)));
 	glEnableVertexAttribArray(uvSlot);
 
-	// if (surface == nullptr)
-	// {
-	// 	std::cout << "CANT LOAD TEXT_TEXTURE!!!" << std::endl;
-	// 	exit(1);
-	// }
-
-	// auto surfaceLength = surface->w * surface->h * 3;
-
-	// swapColors(surfaceLength, surface);
-
 	auto palleteMode = GL_RGB;
 
-	GLuint textureBinding;
-	glGenTextures(1, &textureBinding);
-	glBindTexture(GL_TEXTURE_2D, textureBinding);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-//	glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
+	// GLuint textureBinding;
+	// glGenTextures(1, &textureBinding);
+	// glBindTexture(GL_TEXTURE_2D, textureBinding);
+	// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
 	glActiveTexture(GL_TEXTURE0);
-
-//	SDL_FreeSurface(surface);
-	// glEnable(GL_DEPTH_TEST);
-	//glDisable(GL_CULL_FACE);
 
 	glBindTexture(GL_TEXTURE_2D, renderingTexture);
 
@@ -639,8 +622,7 @@ void OpenGLRenderDevice::drawComplexSurfaceTextureOnScreen() {
 		verticesVector.size()
 	);
 
-	glDeleteBuffers(1, &vbo);
-	glDeleteTextures(1, &textureBinding);
+	//glDeleteTextures(1, &textureBinding);
 }
 
 void OpenGLRenderDevice::DrawComplexSurface(FSceneNode *Frame, FSurfaceInfo &Surface, FSurfaceFacet &Facet)
@@ -656,6 +638,7 @@ void OpenGLRenderDevice::DrawGouraudPolygon(
 	uint32_t PolyFlags
 )
 {
+	return;
 	auto textureWidth = Info.Mips[0].Width;
 	auto textureHeight = Info.Mips[0].Height;
 
@@ -737,6 +720,7 @@ void OpenGLRenderDevice::DrawTile(FSceneNode *Frame, FTextureInfo &Info,
 								  float U, float V, float UL, float VL, float Z,
 								  vec4 Color, vec4 Fog, uint32_t PolyFlags)
 {
+	return;
 	glDisable(GL_DEPTH_TEST);
 	auto width = Info.Mips[0].Width;
 	auto height = Info.Mips[0].Height;
