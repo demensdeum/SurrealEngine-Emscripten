@@ -418,50 +418,55 @@ glm::mat4 filllGLMMat4(const mat4 &source)
 	return result;
 }
 
-void generateMipMap(FSurfaceInfo &Surface, SDL_Surface *surface)
+void generateMipMap(FTextureInfo &Texture, SDL_Surface *surface)
 {
-		auto textureWidth = Surface.Texture->Mips[0].Width;
-		auto textureHeight = Surface.Texture->Mips[0].Height;	
-		auto miplevel = 0;
+	auto textureWidth = Texture.Mips[0].Width;
+	auto textureHeight = Texture.Mips[0].Height;	
+	auto miplevel = 0;
+	{
+		auto &mipmap = Texture.Mips[0];
+
+		uint8_t *mipmapData = mipmap.Data.data();
+		GLuint textureFormat = TextureFormatToGL(Texture.Format);
+
+		if (textureFormat >= GL_COMPRESSED_RGBA_S3TC_DXT1_EXT && textureFormat <= GL_COMPRESSED_RGBA_S3TC_DXT5_EXT)
 		{
-			auto &mipmap = Surface.Texture->Mips[0];
-
-			uint8_t *mipmapData = mipmap.Data.data();
-			GLuint textureFormat = TextureFormatToGL(Surface.Texture->Format);
-
-			if (textureFormat >= GL_COMPRESSED_RGBA_S3TC_DXT1_EXT && textureFormat <= GL_COMPRESSED_RGBA_S3TC_DXT5_EXT)
+			glCompressedTexImage2D(GL_TEXTURE_2D, miplevel, textureFormat, mipmap.Width, mipmap.Height, 0, 0, mipmapData);
+		}
+		else
+		{
+			if (Texture.Format == TextureFormat::P8)
 			{
-				glCompressedTexImage2D(GL_TEXTURE_2D, miplevel, textureFormat, mipmap.Width, mipmap.Height, 0, 0, mipmapData);
-			}
-			else
-			{
-				if (Surface.Texture->Format == TextureFormat::P8)
+				// Convert P8 to RGBA32
+				auto converted_data = P8_Convert(&Texture, miplevel);
+				mipmapData = (uint8_t *)converted_data.data();
+
+				int cursor = 0;
+				for (auto i = 0; i < textureWidth * textureHeight * 4; i += 4)
 				{
-					// Convert P8 to RGBA32
-					auto converted_data = P8_Convert(Surface.Texture, miplevel);
-					mipmapData = (uint8_t *)converted_data.data();
 
-					int cursor = 0;
-					for (auto i = 0; i < textureWidth * textureHeight * 4; i += 4)
-					{
+					auto surfacePixels = (Uint8 *)surface->pixels;
 
-						auto surfacePixels = (Uint8 *)surface->pixels;
+					auto pixels = mipmapData;
 
-						auto pixels = mipmapData;
+					auto redComponent = pixels[i];
+					auto greenComponent = pixels[i + 1];
+					auto blueComponent = pixels[i + 2];
 
-						auto redComponent = pixels[i];
-						auto greenComponent = pixels[i + 1];
-						auto blueComponent = pixels[i + 2];
+					surfacePixels[cursor] = redComponent;
+					surfacePixels[cursor + 1] = greenComponent;
+					surfacePixels[cursor + 2] = blueComponent;
 
-						surfacePixels[cursor] = redComponent;
-						surfacePixels[cursor + 1] = greenComponent;
-						surfacePixels[cursor + 2] = blueComponent;
-
-						cursor += 3;
-					}
+					cursor += 3;
 				}
 			}
 		}
+	}	
+}
+
+void generateMipMap(FSurfaceInfo &Surface, SDL_Surface *surface)
+{
+	generateMipMap(*(Surface.Texture), surface);
 }
 
 void swapColors(int surfaceLength, SDL_Surface *surface) {
@@ -482,26 +487,50 @@ void swapColors(int surfaceLength, SDL_Surface *surface) {
 
 void populateVertexBuffer(
 	std::vector<Vertex> *verticesVector,
+	const GouraudVertex *Pts, 
+	int NumPts
+) {
+	uint32_t vcount = NumPts;
+
+	for (uint32_t i = 0; i < vcount; i++)
+	{
+		vec3 point = Pts[i].Point;
+		float u = Pts[i].UV.x;
+		float v = Pts[i].UV.y;
+
+		Vertex vertex;
+		vertex.Position[0] = point.x;
+		vertex.Position[1] = point.y;
+		vertex.Position[2] = point.z;
+		vertex.TextureUV[0] = u / 100;
+		vertex.TextureUV[1] = v / 100;
+
+		verticesVector->push_back(vertex);
+	}	
+}
+
+void populateVertexBuffer(
+	std::vector<Vertex> *verticesVector,
 	FSurfaceFacet &Facet
 ) {
-		auto pts = Facet.Vertices;
-		uint32_t vcount = Facet.VertexCount;
+	auto pts = Facet.Vertices;
+	uint32_t vcount = Facet.VertexCount;
 
-		for (uint32_t i = 0; i < vcount; i++)
-		{
-			vec3 point = pts[i];
-			float u = dot(Facet.MapCoords.XAxis, point);
-			float v = dot(Facet.MapCoords.YAxis, point);
+	for (uint32_t i = 0; i < vcount; i++)
+	{
+		vec3 point = pts[i];
+		float u = dot(Facet.MapCoords.XAxis, point);
+		float v = dot(Facet.MapCoords.YAxis, point);
 
-			Vertex vertex;
-			vertex.Position[0] = point.x;
-			vertex.Position[1] = point.y;
-			vertex.Position[2] = point.z;
-			vertex.TextureUV[0] = u / 100;
-			vertex.TextureUV[1] = v / 100;
+		Vertex vertex;
+		vertex.Position[0] = point.x;
+		vertex.Position[1] = point.y;
+		vertex.Position[2] = point.z;
+		vertex.TextureUV[0] = u / 100;
+		vertex.TextureUV[1] = v / 100;
 
-			verticesVector->push_back(vertex);
-		}	
+		verticesVector->push_back(vertex);
+	}	
 }
 
 void OpenGLRenderDevice::drawComplexSurfaceToTexture(FSurfaceInfo &Surface, FSurfaceFacet &Facet) {
@@ -728,47 +757,30 @@ void OpenGLRenderDevice::DrawComplexSurface(FSceneNode *Frame, FSurfaceInfo &Sur
 	drawComplexSurfaceToTexture(Surface, Facet);
 }
 
-void OpenGLRenderDevice::DrawGouraudPolygon(FSceneNode *Frame, FTextureInfo &Info, const GouraudVertex *Pts, int NumPts, uint32_t PolyFlags)
+void OpenGLRenderDevice::DrawGouraudPolygon(
+	FSceneNode *Frame, 
+	FTextureInfo &Info, 
+	const GouraudVertex *Pts, 
+	int NumPts, 
+	uint32_t PolyFlags
+)
 {
-	return;
 	auto textureWidth = Info.Mips[0].Width;
 	auto textureHeight = Info.Mips[0].Height;
 
 	auto surface = SDL_CreateRGBSurfaceWithFormat(0,
-												  textureWidth,
-												  textureHeight,
-												  24,
-												  SDL_PIXELFORMAT_RGB24);
-
-	auto pts = Pts;
-	uint32_t vcount = NumPts;
+													textureWidth,
+													textureHeight,
+													24,
+													SDL_PIXELFORMAT_RGB24);
 
 	std::vector<Vertex> verticesVector;
-	std::vector<GLuint> indicesVector;
 
-	for (uint32_t i = 0; i < vcount; i++)
-	{
-		vec3 point = pts->Point[i];
-		float u = dot(pts->UV.x, point);
-		float v = dot(pts->UV.y, point);
-
-		Vertex vertex;
-		vertex.Position[0] = point.x;
-		vertex.Position[1] = point.y;
-		vertex.Position[2] = point.z;
-		vertex.TextureUV[0] = u;
-		vertex.TextureUV[1] = v;
-
-		verticesVector.push_back(vertex);
-		indicesVector.push_back(i);
-	}
+	populateVertexBuffer(&verticesVector, Pts, NumPts);
 
 	Vertex *vertices = verticesVector.data();
-	GLuint *indices = indicesVector.data();
 
 	GLsizei verticesSize = sizeof(Vertex) * verticesVector.size();
-	GLsizei indicesSize = sizeof(GLuint) * indicesVector.size();
-	GLsizei indicesCount = indicesVector.size();
 
 	GLuint shader_program = Shaders->shaders[DrawComplexSurfaceShader]->ProgramID;
 	GLint pos = glGetAttribLocation(shader_program, "vertex");
@@ -776,45 +788,19 @@ void OpenGLRenderDevice::DrawGouraudPolygon(FSceneNode *Frame, FTextureInfo &Inf
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 
-	// glViewport(0, 0, width, height);
-
-	GLuint vbo, indexBuffer;
+	GLuint vbo;
 
 	glGenBuffers(1, &vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 	glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
-
-	glGenBuffers(1, &indexBuffer);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesSize, indices, GL_STATIC_DRAW);
 
 	glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
 	glEnableVertexAttribArray(pos);
 
 	glUseProgram(shader_program);
 
-	// glm::mat4 projectionMatrix = glm::mat4(1);
-	// glm::mat4 projectionMatrix = glm::perspective(45.0f, float(float(width) / float(height)), 0.0001f, 800.0f);
-	glm::mat4 projectionMatrix = filllGLMMat4(Frame->Projection);
-	auto projectionMatrixPtr = glm::value_ptr(projectionMatrix);
-	auto projectionMatrixUniform = glGetUniformLocation(shader_program, "projectionMatrix");
-	glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, projectionMatrixPtr);
-
-	auto modelMatrix = glm::mat4(1);
-	// glm::mat4 modelMatrix = filllGLMMat4(Frame->ObjectToWorld);
-	auto modelMatrixPtr = glm::value_ptr(modelMatrix);
-	auto modelMatrixUniform = glGetUniformLocation(shader_program, "modelMatrix");
-	glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, modelMatrixPtr);
-
-	// printTransform(modelMatrix);
-
-	auto viewMatrix = glm::mat4(1);
-
-	// auto viewMatrix = glm::mat4(1);
-	// auto viewMatrix = filllGLMMat4(Frame->WorldToView);
-	auto viewMatrixPtr = glm::value_ptr(viewMatrix);
-	auto viewMatrixUniform = glGetUniformLocation(shader_program, "viewMatrix");
-	glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, viewMatrixPtr);
+	auto projectionMatrixUniform = glGetUniformLocation(shader_program, "objectToProjectionMatrix");
+	glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, (const GLfloat *)&objectToProjection);
 
 	glActiveTexture(GL_TEXTURE0);
 
@@ -830,21 +816,7 @@ void OpenGLRenderDevice::DrawGouraudPolygon(FSceneNode *Frame, FTextureInfo &Inf
 
 	auto surfaceLength = surface->w * surface->h * 3;
 
-	// swap bgr -> rgb
-
-	for (auto i = 0; i < surfaceLength; i += 3)
-	{
-
-		auto pixels = (Uint8 *)surface->pixels;
-
-		auto blueComponent = pixels[i];
-		auto greenComponent = pixels[i + 1];
-		auto redComponent = pixels[i + 2];
-
-		pixels[i] = redComponent;
-		pixels[i + 1] = greenComponent;
-		pixels[i + 2] = blueComponent;
-	}
+	swapColors(surfaceLength, surface);
 
 	auto palleteMode = GL_RGB;
 
@@ -853,68 +825,25 @@ void OpenGLRenderDevice::DrawGouraudPolygon(FSceneNode *Frame, FTextureInfo &Inf
 	glBindTexture(GL_TEXTURE_2D, textureBinding);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
-	auto miplevel = 0;
-	{
-		auto &mipmap = Info.Mips[0];
+	generateMipMap(Info, surface);
 
-		uint8_t *mipmapData = mipmap.Data.data();
-		GLuint textureFormat = TextureFormatToGL(Info.Format);
-
-		if (textureFormat >= GL_COMPRESSED_RGBA_S3TC_DXT1_EXT && textureFormat <= GL_COMPRESSED_RGBA_S3TC_DXT5_EXT)
-		{
-			glCompressedTexImage2D(GL_TEXTURE_2D, miplevel, textureFormat, mipmap.Width, mipmap.Height, 0, 0, mipmapData);
-		}
-		else
-		{
-			if (Info.Format == TextureFormat::P8)
-			{
-				// Convert P8 to RGBA32
-				auto converted_data = P8_Convert(&Info, miplevel);
-				mipmapData = (uint8_t *)converted_data.data();
-
-				int cursor = 0;
-				for (auto i = 0; i < textureWidth * textureHeight * 4; i += 4)
-				{
-
-					auto surfacePixels = (Uint8 *)surface->pixels;
-
-					auto pixels = mipmapData;
-
-					auto redComponent = pixels[i];
-					auto greenComponent = pixels[i + 1];
-					auto blueComponent = pixels[i + 2];
-
-					surfacePixels[cursor] = redComponent;
-					surfacePixels[cursor + 1] = greenComponent;
-					surfacePixels[cursor + 2] = blueComponent;
-
-					cursor += 3;
-				}
-			}
-
-			// glTexImage2D(GL_TEXTURE_2D, miplevel, textureFormat, mipmap.Width, mipmap.Height, 0, textureFormat, GL_UNSIGNED_BYTE, mipmapData);
-		}
-	}
 	glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
-
-	// glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
 
 	glActiveTexture(GL_TEXTURE0);
 
 	SDL_FreeSurface(surface);
 	// glEnable(GL_DEPTH_TEST);
-	// glEnable(GL_CULL_FACE);
+	//glEnable(GL_CULL_FACE);
 	GLint textureSlot = glGetUniformLocation(shader_program, "texture");
 	glUniform1i(textureSlot, 0);
 
-	glDrawElements(
+	glDrawArrays(
 		GL_TRIANGLE_FAN,
-		indicesCount,
-		GL_UNSIGNED_INT,
-		0);
+		0,
+		verticesVector.size()
+	);
 
 	glDeleteBuffers(1, &vbo);
-	glDeleteBuffers(1, &indexBuffer);
 	glDeleteTextures(1, &textureBinding);
 }
 
