@@ -637,7 +637,7 @@ void OpenGLRenderDevice::drawComplexSurfaceTextureOnScreen() {
 
 //	auto surface = wallpaper;
 
-	const GLfloat Z_COORD = 1.f;
+	const GLfloat Z_COORD = 0.89f;
 
 	const GLfloat ASPECT_RATIO = 16.0f / 9.0f;
 
@@ -923,6 +923,7 @@ void OpenGLRenderDevice::DrawTile(FSceneNode *Frame, FTextureInfo &Info,
 								  float U, float V, float UL, float VL, float Z,
 								  vec4 Color, vec4 Fog, uint32_t PolyFlags)
 {
+	glDisable(GL_DEPTH_TEST);
 	auto width = Info.Mips[0].Width;
 	auto height = Info.Mips[0].Height;
 
@@ -940,17 +941,19 @@ void OpenGLRenderDevice::DrawTile(FSceneNode *Frame, FTextureInfo &Info,
 	GLfloat viewportWidth = 1920;
 	GLfloat viewportHeight = 1080;
 
-	GLfloat ndcX = (X / viewportWidth) * 2.0f - 1.0f;
-	GLfloat ndcY = 1.0f - (Y / viewportHeight) * 2.0f;
-	GLfloat ndcXL = (XL / viewportWidth) * 2.0f;
-	GLfloat ndcYL = (YL / viewportHeight) * 2.0f;
+    GLfloat ndcX = (X / viewportWidth) * 2.0f - 1.0f;
+    GLfloat ndcY = (Y / viewportHeight) * 2.0f - 1.0f; // Invert Y-axis
+    GLfloat ndcXL = (XL / viewportWidth) * 2.0f;
+    GLfloat ndcYL = (YL / viewportHeight) * 2.0f;
 
-	Vertex vertices[] = {
-		{{ndcX, ndcY, Z}, {u, v}},
-		{{ndcX + ndcXL, ndcY, Z}, {u + ul, v}},
-		{{ndcX + ndcXL, ndcY - ndcYL, Z}, {u + ul, v + vl}},
-		{{ndcX, ndcY - ndcYL, Z}, {u, v + vl}}};
-	GLint verticesCount = 4;
+    // Adjust the vertex positions for vertical flip and Y-axis inversion
+    Vertex vertices[] = {
+        {{ndcX, ndcY + ndcYL, Z}, {u, v + vl}}, // bottom-left
+        {{ndcX + ndcXL, ndcY + ndcYL, Z}, {u + ul, v + vl}}, // bottom-right
+        {{ndcX + ndcXL, ndcY, Z}, {u + ul, v}}, // top-right
+        {{ndcX, ndcY, Z}, {u, v}} // top-left
+    };
+    GLint verticesCount = 4;
 
 	GLuint indices[] = {
 		0, 1, 2,
