@@ -255,6 +255,8 @@ std::vector<FColor> P8_Convert(FTextureInfo *info, size_t mipmapLevel)
 
 OpenGLRenderDevice::OpenGLRenderDevice(GameWindow *InWindow)
 {
+	//glEnable(GL_DEPTH_TEST);
+	
 	std::cout << "OpenGLRenderDevice::OpenGLRenderDevice(GameWindow* InWindow)" << std::endl;
 	Viewport = InWindow;
 
@@ -287,8 +289,9 @@ void OpenGLRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)
 {
 	initializeAndBindRenderingTexture();
 	std::cout << "OpenGLRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)" << std::endl;
+	glEnable(GL_DEPTH_TEST);
 	glClearColor(0.2f, 0.35f, 0.3f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
 	xOffset -= 0.1;
 }
 
@@ -501,6 +504,7 @@ void populateVertexBuffer(
 }
 
 void OpenGLRenderDevice::drawComplexSurfaceToTexture(FSurfaceInfo &Surface, FSurfaceFacet &Facet) {
+	
 	auto textureWidth = Surface.Texture->Mips[0].Width;
 	auto textureHeight = Surface.Texture->Mips[0].Height;
 
@@ -569,7 +573,7 @@ void OpenGLRenderDevice::drawComplexSurfaceToTexture(FSurfaceInfo &Surface, FSur
 
 	SDL_FreeSurface(surface);
 	// glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CULL_FACE);
+	//glEnable(GL_CULL_FACE);
 	GLint textureSlot = glGetUniformLocation(shader_program, "texture");
 	glUniform1i(textureSlot, 0);
 
@@ -595,6 +599,17 @@ void OpenGLRenderDevice::initializeAndBindRenderingTexture() {
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, textureWidth, textureHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+
+	glGenTextures(1, &depthBufferTexture);
+	glBindTexture(GL_TEXTURE_2D, depthBufferTexture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, textureWidth, textureHeight, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, NULL);
+
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthBufferTexture, 0);	
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, renderingTexture, 0);
 
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
@@ -605,12 +620,14 @@ void OpenGLRenderDevice::initializeAndBindRenderingTexture() {
 
 void OpenGLRenderDevice::removeRenderingTexture() {
 	glDeleteBuffers(1, &fbo);
+	glDeleteTextures(1, &depthBufferTexture);
 	glDeleteTextures(1, &renderingTexture);
 }
 
 void OpenGLRenderDevice::drawComplexSurfaceTextureOnScreen() {
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glDisable(GL_DEPTH_TEST);
 
 	// auto wallpaper = SDL_LoadBMP("wallpaper.bmp");
 
@@ -688,7 +705,7 @@ void OpenGLRenderDevice::drawComplexSurfaceTextureOnScreen() {
 
 //	SDL_FreeSurface(surface);
 	// glEnable(GL_DEPTH_TEST);
-	glDisable(GL_CULL_FACE);
+	//glDisable(GL_CULL_FACE);
 
 	glBindTexture(GL_TEXTURE_2D, renderingTexture);
 
@@ -1096,7 +1113,7 @@ void OpenGLRenderDevice::Draw2DPoint(FSceneNode *Frame, vec4 Color, float X1, fl
 void OpenGLRenderDevice::ClearZ(FSceneNode *Frame)
 {
 	std::cout << "OpenGLRenderDevice::ClearZ" << std::endl;
-	glClear(GL_DEPTH_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
 }
 
 void OpenGLRenderDevice::ReadPixels(FColor *Pixels)

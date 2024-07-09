@@ -67,6 +67,7 @@ public:
 private:
 
     GLuint fbo;
+	GLuint depthBufferTexture;
     GLuint renderingTexture;
 
 	void initializeAndBindRenderingTexture();
