@@ -647,7 +647,7 @@ void OpenGLRenderDevice::DrawGouraudPolygon(
 	uint32_t PolyFlags
 )
 {
-	return;
+	//return;
 	auto textureWidth = Info.Mips[0].Width;
 	auto textureHeight = Info.Mips[0].Height;
 
@@ -729,7 +729,7 @@ void OpenGLRenderDevice::DrawTile(FSceneNode *Frame, FTextureInfo &Info,
 								  float U, float V, float UL, float VL, float Z,
 								  vec4 Color, vec4 Fog, uint32_t PolyFlags)
 {
-	return;
+	//return;
 	glDisable(GL_DEPTH_TEST);
 	auto width = Info.Mips[0].Width;
 	auto height = Info.Mips[0].Height;

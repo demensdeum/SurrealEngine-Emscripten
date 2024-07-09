@@ -4,7 +4,9 @@ OpenGL Renderer partially from LupertEverett:
 https://github.com/LupertEverett/SurrealEngine/tree/openglrenderdevice  
 
 Right now it runs engine, load code, UnrealScript runtime works, OpenGL renderer WIP, no sound.
-  
+
+OpenGL WIP Video: https://youtu.be/1IC4uT66LN8  
+
 # Surreal Engine
 
 The goal of this project is to reimplement enough of the original Unreal Engine to make the Unreal Tournament (UT99) maps playable.
