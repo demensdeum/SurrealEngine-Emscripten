@@ -485,25 +485,33 @@ void swapColors(int surfaceLength, SDL_Surface *surface) {
 	}	
 }
 
+
+inline float GetUMult(const FTextureInfo& Info) { return 1.0f / (Info.UScale * Info.USize); }
+inline float GetVMult(const FTextureInfo& Info) { return 1.0f / (Info.VScale * Info.VSize); }
+
 void populateVertexBuffer(
 	std::vector<Vertex> *verticesVector,
+	FTextureInfo& Info,
 	const GouraudVertex *Pts, 
 	int NumPts
 ) {
 	uint32_t vcount = NumPts;
 
+	float UMult = GetUMult(Info);
+	float VMult = GetVMult(Info);
+
 	for (uint32_t i = 0; i < vcount; i++)
 	{
 		vec3 point = Pts[i].Point;
-		float u = Pts[i].UV.x;
-		float v = Pts[i].UV.y;
+		float u = Pts[i].UV.s * UMult;
+		float v = Pts[i].UV.t * VMult;
 
 		Vertex vertex;
 		vertex.Position[0] = point.x;
 		vertex.Position[1] = point.y;
 		vertex.Position[2] = point.z;
-		vertex.TextureUV[0] = u / 100;
-		vertex.TextureUV[1] = v / 100;
+		vertex.TextureUV[0] = u;
+		vertex.TextureUV[1] = v;
 
 		verticesVector->push_back(vertex);
 	}	
@@ -511,10 +519,19 @@ void populateVertexBuffer(
 
 void populateVertexBuffer(
 	std::vector<Vertex> *verticesVector,
-	FSurfaceFacet &Facet
+	FSurfaceFacet &Facet,
+	FSurfaceInfo& Surface	
 ) {
 	auto pts = Facet.Vertices;
 	uint32_t vcount = Facet.VertexCount;
+
+	float UDot = dot(Facet.MapCoords.XAxis, Facet.MapCoords.Origin);
+	float VDot = dot(Facet.MapCoords.YAxis, Facet.MapCoords.Origin);
+
+	float UPan = UDot + Surface.Texture->Pan.x;
+	float VPan = VDot + Surface.Texture->Pan.y;
+	float UMult = GetUMult(*Surface.Texture);
+	float VMult = GetVMult(*Surface.Texture);
 
 	for (uint32_t i = 0; i < vcount; i++)
 	{
@@ -526,8 +543,8 @@ void populateVertexBuffer(
 		vertex.Position[0] = point.x;
 		vertex.Position[1] = point.y;
 		vertex.Position[2] = point.z;
-		vertex.TextureUV[0] = u / 100;
-		vertex.TextureUV[1] = v / 100;
+		vertex.TextureUV[0] = (u - UPan) * UMult;
+		vertex.TextureUV[1] = (v - VPan) * VMult;
 
 		verticesVector->push_back(vertex);
 	}	
@@ -546,7 +563,7 @@ void OpenGLRenderDevice::drawComplexSurfaceToTexture(FSurfaceInfo &Surface, FSur
 
 	std::vector<Vertex> verticesVector;
 
-	populateVertexBuffer(&verticesVector, Facet);
+	populateVertexBuffer(&verticesVector, Facet, Surface);
 
 	Vertex *vertices = verticesVector.data();
 
@@ -776,7 +793,7 @@ void OpenGLRenderDevice::DrawGouraudPolygon(
 
 	std::vector<Vertex> verticesVector;
 
-	populateVertexBuffer(&verticesVector, Pts, NumPts);
+	populateVertexBuffer(&verticesVector, Info, Pts, NumPts);
 
 	Vertex *vertices = verticesVector.data();
 
