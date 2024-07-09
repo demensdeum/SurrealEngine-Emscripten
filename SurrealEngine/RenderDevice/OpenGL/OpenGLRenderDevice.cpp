@@ -300,27 +300,36 @@ Vertex Vertexxx(GLfloat x, GLfloat y, GLfloat z)
 	return vertex;
 }
 
-void generateMipMap(FTextureInfo &Texture, SDL_Surface *surface)
+void generateMipMap(FTextureInfo *Texture, SDL_Surface *surface)
 {
-	auto textureWidth = Texture.Mips[0].Width;
-	auto textureHeight = Texture.Mips[0].Height;	
+	auto textureWidth = Texture->Mips[0].Width;
+	auto textureHeight = Texture->Mips[0].Height;	
 	auto miplevel = 0;
 	{
-		auto &mipmap = Texture.Mips[0];
+		UnrealMipmap* mipmap = &Texture->Mips[0];
+		uint8_t *mipmapData = mipmap->Data.data();
 
-		uint8_t *mipmapData = mipmap.Data.data();
-		GLuint textureFormat = TextureFormatToGL(Texture.Format);
+		GLuint textureFormat = TextureFormatToGL(Texture->Format);
 
 		if (textureFormat >= GL_COMPRESSED_RGBA_S3TC_DXT1_EXT && textureFormat <= GL_COMPRESSED_RGBA_S3TC_DXT5_EXT)
 		{
-			glCompressedTexImage2D(GL_TEXTURE_2D, miplevel, textureFormat, mipmap.Width, mipmap.Height, 0, 0, mipmapData);
+			glCompressedTexImage2D(
+				GL_TEXTURE_2D, 
+				miplevel, 
+				textureFormat, 
+				mipmap->Width, 
+				mipmap->Height, 
+				0, 
+				0, 
+				mipmapData
+			);
 		}
 		else
 		{
-			if (Texture.Format == TextureFormat::P8)
+			if (Texture->Format == TextureFormat::P8)
 			{
 				// Convert P8 to RGBA32
-				auto converted_data = P8_Convert(&Texture, miplevel);
+				auto converted_data = P8_Convert(Texture, miplevel);
 				mipmapData = (uint8_t *)converted_data.data();
 
 				int cursor = 0;
@@ -348,7 +357,7 @@ void generateMipMap(FTextureInfo &Texture, SDL_Surface *surface)
 
 void generateMipMap(FSurfaceInfo &Surface, SDL_Surface *surface)
 {
-	generateMipMap(*(Surface.Texture), surface);
+	generateMipMap(Surface.Texture, surface);
 }
 
 inline float GetUMult(const FTextureInfo& Info) { return 1.0f / (Info.UScale * Info.USize); }
@@ -693,7 +702,7 @@ void OpenGLRenderDevice::DrawGouraudPolygon(
 	glBindTexture(GL_TEXTURE_2D, textureBinding);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
-	generateMipMap(Info, surface);
+	generateMipMap(&Info, surface);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
 
@@ -805,7 +814,7 @@ void OpenGLRenderDevice::DrawTile(FSceneNode *Frame, FTextureInfo &Info,
 	size_t numMips = info->Texture->Mipmaps.size();
 	GLuint textureFormat = TextureFormatToGL(info->Format);
 
-	generateMipMap(Info, surface);
+	generateMipMap(info, surface);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
 
