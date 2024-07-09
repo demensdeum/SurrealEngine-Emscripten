@@ -9,47 +9,13 @@
 #include <SDL2/SDL.h>
 #include <iostream>
 
-#define GLM_ENABLE_EXPERIMENTAL
-
-#include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtx/matrix_decompose.hpp>
+std::map<int, SDL_Surface *> cachedSurfaces;
 
 float Aspect = 0.0f;
 float RProjZ = 0.0f;
 float RFX2 = 0.0f;
 float RFY2 = 0.0f;
 mat4 objectToProjection;
-
-SDL_Surface *duplicateSurface(SDL_Surface *original)
-{
-	if (!original)
-	{
-		fprintf(stderr, "Original surface is NULL!\n");
-		return NULL;
-	}
-
-	SDL_Surface *duplicate = SDL_CreateRGBSurfaceWithFormat(0,
-															original->w,
-															original->h,
-															original->format->BitsPerPixel,
-															original->format->format);
-	if (!duplicate)
-	{
-		fprintf(stderr, "SDL_CreateRGBSurfaceWithFormat Error: %s\n", SDL_GetError());
-		return NULL;
-	}
-
-	if (SDL_BlitSurface(original, NULL, duplicate, NULL) != 0)
-	{
-		fprintf(stderr, "SDL_BlitSurface Error: %s\n", SDL_GetError());
-		SDL_FreeSurface(duplicate);
-		return NULL;
-	}
-
-	return duplicate;
-}
 
 GLfloat xOffset = -0.8f;
 
@@ -194,20 +160,6 @@ GLuint TextureFormatToGL(TextureFormat format)
 
 	case TextureFormat::R11G11B10_F:
 		return GL_R11F_G11F_B10F;
-
-		// ASTC formats seem to be an OpenGL ES 3.0+ and OpenGL 4.3+ thing...
-		/*
-		case TextureFormat::ASTC_4x4:
-			return GL_COMPRESSED_RGBA_ASTC_4x4_KHR;
-		case TextureFormat::ASTC_5x4:
-			return GL_COMPRESSED_RGBA_ASTC_5x4_KHR;
-		case TextureFormat::ASTC_5x5:
-			return GL_COMPRESSED_RGBA_ASTC_5x5_KHR;
-		case TextureFormat::ASTC_6x5:
-			return GL_COMPRESSED_RGBA_ASTC_6x5_KHR;
-		case TextureFormat::ASTC_6x6:
-			return GL_COMPRESSED_RGBA_ASTC_6x6_KHR;
-		*/
 	}
 
 	return 0;
@@ -254,9 +206,7 @@ std::vector<FColor> P8_Convert(FTextureInfo *info, size_t mipmapLevel)
 }
 
 OpenGLRenderDevice::OpenGLRenderDevice(GameWindow *InWindow)
-{
-	//glEnable(GL_DEPTH_TEST);
-	
+{	
 	std::cout << "OpenGLRenderDevice::OpenGLRenderDevice(GameWindow* InWindow)" << std::endl;
 	Viewport = InWindow;
 
@@ -265,9 +215,18 @@ OpenGLRenderDevice::OpenGLRenderDevice(GameWindow *InWindow)
 	Shaders.reset(new GLShaderManager());
 }
 
+void clearCachedSurfaces() {
+	for (auto iter = std::cbegin(cachedSurfaces); iter != std::cend(cachedSurfaces); ++iter) {
+		SDL_FreeSurface(iter->second);
+	}
+	cachedSurfaces.clear();
+}
+
 OpenGLRenderDevice::~OpenGLRenderDevice()
 {
-	// std::cout << "OpenGLRenderDevice::~OpenGLRenderDevice()" << std::endl;
+	clearCachedSurfaces();
+	initializeAndBindRenderingTexture();
+
 	Textures->ClearTextures();
 	Framebuffers.reset();
 	Shaders.reset();
@@ -277,6 +236,10 @@ void OpenGLRenderDevice::Flush(bool AllowPrecache)
 {
 	// Flush all OpenGL resources
 	std::cout << "OpenGLRenderDevice::Flush(bool AllowPrecache)" << std::endl;
+
+	clearCachedSurfaces();
+	removeRenderingTexture();
+	initializeAndBindRenderingTexture();
 }
 
 bool OpenGLRenderDevice::Exec(std::string Cmd, OutputDevice &Ar)
@@ -287,7 +250,8 @@ bool OpenGLRenderDevice::Exec(std::string Cmd, OutputDevice &Ar)
 
 void OpenGLRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)
 {
-	initializeAndBindRenderingTexture();
+	//initializeAndBindRenderingTexture();
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 	std::cout << "OpenGLRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)" << std::endl;
 	glEnable(GL_DEPTH_TEST);
 	
@@ -304,7 +268,7 @@ void OpenGLRenderDevice::Unlock(bool Blit)
 	{
 		drawComplexSurfaceTextureOnScreen();
 		SDL_GL_SwapWindow(SDL2Window::currentWindow);
-		removeRenderingTexture();
+		//removeRenderingTexture();
 	}
 }
 
@@ -319,103 +283,6 @@ Vertex Vertexxx(GLfloat x, GLfloat y, GLfloat z)
 	vertex.TextureUV[1] = y;
 
 	return vertex;
-}
-
-// glm::mat4 fillGLMMat4(const mat4 &source) {
-//     glm::mat4 result;
-
-//     for (int i = 0; i < 4; ++i) {
-//         for (int j = 0; j < 4; ++j) {
-//             result[j][i] = source.matrix[i * 4 + j];
-//         }
-//     }
-
-//     return result;
-// }
-
-bool isUnitMatrix(const glm::mat4 &m)
-{
-	glm::mat4 identityMatrix = glm::mat4(1.0f);
-	const float *pMatrix = (const float *)glm::value_ptr(m);
-	const float *pIdentity = (const float *)glm::value_ptr(identityMatrix);
-	for (int i = 0; i < 16; ++i)
-	{
-		if (pMatrix[i] != pIdentity[i])
-		{
-			return false;
-		}
-	}
-	return true;
-}
-
-void printTTransform(std::string name, const glm::mat4 &m)
-{
-	return;
-	std::cout << "Matrix name: " << name << std::endl;
-
-	// Decompose the matrix
-	glm::vec3 scale;
-	glm::quat rotation;
-	glm::vec3 translation;
-	glm::vec3 skew;
-	glm::vec4 perspective;
-	bool decomposed = glm::decompose(m, scale, rotation, translation, skew, perspective);
-
-	// Check for decomposition success
-	if (!decomposed)
-	{
-		std::cout << "Decomposition failed!\n";
-		return;
-	}
-
-	// Print information
-	std::cout << "Matrix:\n";
-	const float *pMatrix = (const float *)glm::value_ptr(m);
-	for (int i = 0; i < 4; ++i)
-	{
-		for (int j = 0; j < 4; ++j)
-		{
-			std::cout << pMatrix[i * 4 + j] << " ";
-		}
-		std::cout << "\n";
-	}
-
-	// Print extracted data
-	std::cout << "Position (x, y, z): ("
-			  << translation.x << ", "
-			  << translation.y << ", "
-			  << translation.z << ")\n";
-
-	// Convert quaternion to euler angles (if desired)
-	glm::vec3 eulerAngles = glm::degrees(glm::eulerAngles(rotation));
-	std::cout << "Rotation (x, y, z): ("
-			  << eulerAngles.x << ", "
-			  << eulerAngles.y << ", "
-			  << eulerAngles.z << ")\n";
-
-	// Print scale (if relevant)
-	if (scale != glm::vec3(1.0f))
-	{
-		std::cout << "Scale (x, y, z): ("
-				  << scale.x << ", "
-				  << scale.y << ", "
-				  << scale.z << ")\n";
-	}
-}
-
-glm::mat4 filllGLMMat4(const mat4 &source)
-{
-	glm::mat4 result;
-
-	for (int i = 0; i < 4; ++i)
-	{
-		for (int j = 0; j < 4; ++j)
-		{
-			result[j][i] = source.matrix[i * 4 + j];
-		}
-	}
-
-	return result;
 }
 
 void generateMipMap(FTextureInfo &Texture, SDL_Surface *surface)
@@ -469,21 +336,21 @@ void generateMipMap(FSurfaceInfo &Surface, SDL_Surface *surface)
 	generateMipMap(*(Surface.Texture), surface);
 }
 
-void swapColors(int surfaceLength, SDL_Surface *surface) {
-	for (auto i = 0; i < surfaceLength; i += 3)
-	{
+// void swapColors(int surfaceLength, SDL_Surface *surface) {
+// 	for (auto i = 0; i < surfaceLength; i += 3)
+// 	{
 
-		auto pixels = (Uint8 *)surface->pixels;
+// 		auto pixels = (Uint8 *)surface->pixels;
 
-		auto blueComponent = pixels[i];
-		auto greenComponent = pixels[i + 1];
-		auto redComponent = pixels[i + 2];
+// 		auto blueComponent = pixels[i];
+// 		auto greenComponent = pixels[i + 1];
+// 		auto redComponent = pixels[i + 2];
 
-		pixels[i] = redComponent;
-		pixels[i + 1] = greenComponent;
-		pixels[i + 2] = blueComponent;
-	}	
-}
+// 		pixels[i] = redComponent;
+// 		pixels[i + 1] = greenComponent;
+// 		pixels[i + 2] = blueComponent;
+// 	}	
+// }
 
 
 inline float GetUMult(const FTextureInfo& Info) { return 1.0f / (Info.UScale * Info.USize); }
@@ -550,17 +417,30 @@ void populateVertexBuffer(
 	}	
 }
 
+SDL_Surface *createOrGetCachedSurface(FTextureInfo *Texture) {
+
+	if (cachedSurfaces.find(Texture->CacheID) != cachedSurfaces.end()) {
+		return cachedSurfaces[Texture->CacheID];
+	}
+
+	auto textureWidth = Texture->Mips[0].Width;
+	auto textureHeight = Texture->Mips[0].Height;
+
+	SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(
+		0,
+		textureWidth,
+		textureHeight,
+		24,
+		SDL_PIXELFORMAT_RGB24
+	);
+
+	cachedSurfaces[Texture->CacheID] = surface;
+
+	return surface;
+}
+
 void OpenGLRenderDevice::drawComplexSurfaceToTexture(FSurfaceInfo &Surface, FSurfaceFacet &Facet) {
 	
-	auto textureWidth = Surface.Texture->Mips[0].Width;
-	auto textureHeight = Surface.Texture->Mips[0].Height;
-
-	auto surface = SDL_CreateRGBSurfaceWithFormat(0,
-													textureWidth,
-													textureHeight,
-													24,
-													SDL_PIXELFORMAT_RGB24);
-
 	std::vector<Vertex> verticesVector;
 
 	populateVertexBuffer(&verticesVector, Facet, Surface);
@@ -595,16 +475,6 @@ void OpenGLRenderDevice::drawComplexSurfaceToTexture(FSurfaceInfo &Surface, FSur
 	glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)(sizeof(Vertex::Position)));
 	glEnableVertexAttribArray(uvSlot);
 
-	if (surface == nullptr)
-	{
-		std::cout << "CANT LOAD TEXT_TEXTURE!!!" << std::endl;
-		exit(1);
-	}
-
-	auto surfaceLength = surface->w * surface->h * 3;
-
-	swapColors(surfaceLength, surface);
-
 	auto palleteMode = GL_RGB;
 
 	GLuint textureBinding;
@@ -612,15 +482,20 @@ void OpenGLRenderDevice::drawComplexSurfaceToTexture(FSurfaceInfo &Surface, FSur
 	glBindTexture(GL_TEXTURE_2D, textureBinding);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
+	auto surface = createOrGetCachedSurface(Surface.Texture);
+
+	if (surface == nullptr)
+	{
+		std::cout << "CANT LOAD TEXT_TEXTURE!!!" << std::endl;
+		exit(1);
+	}
+
 	generateMipMap(Surface, surface);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
 
 	glActiveTexture(GL_TEXTURE0);
 
-	SDL_FreeSurface(surface);
-	// glEnable(GL_DEPTH_TEST);
-	//glEnable(GL_CULL_FACE);
 	GLint textureSlot = glGetUniformLocation(shader_program, "texture");
 	glUniform1i(textureSlot, 0);
 
@@ -635,6 +510,7 @@ void OpenGLRenderDevice::drawComplexSurfaceToTexture(FSurfaceInfo &Surface, FSur
 }
 
 void OpenGLRenderDevice::initializeAndBindRenderingTexture() {
+	
     auto textureWidth = 1920;
     auto textureHeight = 1080;
 
@@ -646,7 +522,6 @@ void OpenGLRenderDevice::initializeAndBindRenderingTexture() {
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, textureWidth, textureHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
 
 	glGenTextures(1, &depthBufferTexture);
 	glBindTexture(GL_TEXTURE_2D, depthBufferTexture);
@@ -672,7 +547,6 @@ void OpenGLRenderDevice::removeRenderingTexture() {
 }
 
 void OpenGLRenderDevice::drawComplexSurfaceTextureOnScreen() {
-
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glDisable(GL_DEPTH_TEST);
 
@@ -785,11 +659,7 @@ void OpenGLRenderDevice::DrawGouraudPolygon(
 	auto textureWidth = Info.Mips[0].Width;
 	auto textureHeight = Info.Mips[0].Height;
 
-	auto surface = SDL_CreateRGBSurfaceWithFormat(0,
-													textureWidth,
-													textureHeight,
-													24,
-													SDL_PIXELFORMAT_RGB24);
+	auto surface = createOrGetCachedSurface(&Info);
 
 	std::vector<Vertex> verticesVector;
 
@@ -831,9 +701,7 @@ void OpenGLRenderDevice::DrawGouraudPolygon(
 		exit(1);
 	}
 
-	auto surfaceLength = surface->w * surface->h * 3;
-
-	swapColors(surfaceLength, surface);
+	//swapColors(surfaceLength, surface);
 
 	auto palleteMode = GL_RGB;
 
@@ -848,7 +716,7 @@ void OpenGLRenderDevice::DrawGouraudPolygon(
 
 	glActiveTexture(GL_TEXTURE0);
 
-	SDL_FreeSurface(surface);
+	//SDL_FreeSurface(surface);
 	// glEnable(GL_DEPTH_TEST);
 	//glEnable(GL_CULL_FACE);
 	GLint textureSlot = glGetUniformLocation(shader_program, "texture");
@@ -872,12 +740,6 @@ void OpenGLRenderDevice::DrawTile(FSceneNode *Frame, FTextureInfo &Info,
 	glDisable(GL_DEPTH_TEST);
 	auto width = Info.Mips[0].Width;
 	auto height = Info.Mips[0].Height;
-
-	auto surface = SDL_CreateRGBSurfaceWithFormat(0,
-												  width,
-												  height,
-												  24,
-												  SDL_PIXELFORMAT_RGB24);
 
 	GLfloat u = GLfloat(U) / width;
 	GLfloat v = GLfloat(V) / height;
@@ -939,33 +801,12 @@ void OpenGLRenderDevice::DrawTile(FSceneNode *Frame, FTextureInfo &Info,
 	glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)(sizeof(Vertex::Position)));
 	glEnableVertexAttribArray(uvSlot);
 
-	// auto texture = Textures->GetTexture(&Info);
-	// texture->Bind();
-	// GLint textureSlot = glGetUniformLocation(shader_program, "texture");
-	// glUniform1i(textureSlot, 0);
+	SDL_Surface *surface = createOrGetCachedSurface(&Info);
 
 	if (surface == nullptr)
 	{
 		std::cout << "CANT LOAD TEXT_TEXTURE!!!" << std::endl;
 		exit(1);
-	}
-
-	auto surfaceLength = surface->w * surface->h * 3;
-
-	// swap bgr -> rgb
-
-	for (auto i = 0; i < surfaceLength; i += 3)
-	{
-
-		auto pixels = (Uint8 *)surface->pixels;
-
-		auto blueComponent = pixels[i];
-		auto greenComponent = pixels[i + 1];
-		auto redComponent = pixels[i + 2];
-
-		pixels[i] = redComponent;
-		pixels[i + 1] = greenComponent;
-		pixels[i + 2] = blueComponent;
 	}
 
 	auto palleteMode = GL_RGB;
@@ -980,55 +821,15 @@ void OpenGLRenderDevice::DrawTile(FSceneNode *Frame, FTextureInfo &Info,
 	size_t numMips = info->Texture->Mipmaps.size();
 	GLuint textureFormat = TextureFormatToGL(info->Format);
 
-	// for (size_t miplevel = 0; miplevel < numMips; miplevel++)
-	auto miplevel = 0;
-	{
-		auto &mipmap = info->Texture->Mipmaps[miplevel];
+	generateMipMap(Info, surface);
 
-		uint8_t *mipmapData = mipmap.Data.data();
-
-		if (textureFormat >= GL_COMPRESSED_RGBA_S3TC_DXT1_EXT && textureFormat <= GL_COMPRESSED_RGBA_S3TC_DXT5_EXT)
-		{
-			glCompressedTexImage2D(GL_TEXTURE_2D, miplevel, textureFormat, mipmap.Width, mipmap.Height, 0, 0, mipmapData);
-		}
-		else
-		{
-			if (info->Format == TextureFormat::P8)
-			{
-				// Convert P8 to RGBA32
-				auto converted_data = P8_Convert(info, miplevel);
-				mipmapData = (uint8_t *)converted_data.data();
-
-				int cursor = 0;
-				for (auto i = 0; i < width * height * 4; i += 4)
-				{
-
-					auto surfacePixels = (Uint8 *)surface->pixels;
-
-					auto pixels = mipmapData;
-
-					auto redComponent = pixels[i];
-					auto greenComponent = pixels[i + 1];
-					auto blueComponent = pixels[i + 2];
-
-					surfacePixels[cursor] = redComponent;
-					surfacePixels[cursor + 1] = greenComponent;
-					surfacePixels[cursor + 2] = blueComponent;
-
-					cursor += 3;
-				}
-			}
-
-			// glTexImage2D(GL_TEXTURE_2D, miplevel, textureFormat, mipmap.Width, mipmap.Height, 0, textureFormat, GL_UNSIGNED_BYTE, mipmapData);
-		}
-	}
 	glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
 
 	// BMP -> glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
 
 	glActiveTexture(GL_TEXTURE0);
 
-	SDL_FreeSurface(surface);
+	//SDL_FreeSurface(surface);
 	// glEnable(GL_DEPTH_TEST);
 	// glEnable(GL_CULL_FACE);
 	GLint textureSlot = glGetUniformLocation(shaderProgramID, "texture");
@@ -1068,6 +869,8 @@ void OpenGLRenderDevice::ClearZ(FSceneNode *Frame)
 
 void OpenGLRenderDevice::ReadPixels(FColor *Pixels)
 {
+	// MEMORY LEAK?
+	return;
 	std::cout << "OpenGLRenderDevice::ReadPixels(FColor* Pixels)" << std::endl;
 	auto readPixels = Framebuffers->SceneFrameBuffer->ReadPixelData();
 
