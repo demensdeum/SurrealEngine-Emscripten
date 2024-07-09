@@ -290,6 +290,7 @@ void OpenGLRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)
 	initializeAndBindRenderingTexture();
 	std::cout << "OpenGLRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)" << std::endl;
 	glEnable(GL_DEPTH_TEST);
+	
 	glClearColor(0.2f, 0.35f, 0.3f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
 	xOffset -= 0.1;
@@ -1113,7 +1114,7 @@ void OpenGLRenderDevice::Draw2DPoint(FSceneNode *Frame, vec4 Color, float X1, fl
 void OpenGLRenderDevice::ClearZ(FSceneNode *Frame)
 {
 	std::cout << "OpenGLRenderDevice::ClearZ" << std::endl;
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
+	glClear(GL_DEPTH_BUFFER_BIT);	
 }
 
 void OpenGLRenderDevice::ReadPixels(FColor *Pixels)
