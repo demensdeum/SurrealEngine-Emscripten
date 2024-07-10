@@ -31,6 +31,8 @@ public:
 
 	void Flush(bool AllowPrecache) override; // free all resources
 
+	void bindTexture(FTextureInfo *texture);
+
 	void DrawTile(
 		FSceneNode* Frame, 
 		FTextureInfo& Info, 
@@ -73,12 +75,10 @@ private:
 
 	std::chrono::milliseconds renderingStartDate;
 
-	GLuint vbo; // <- Vertex Buffer
-	GLuint textureBinding; 
-
-    GLuint fbo; // <- Rectangle Frame Buffer
-	GLuint depthBufferTexture;
-    GLuint renderingTexture; // <- Rectangle Frame Buffer Texture
+	GLuint vbo;
+    GLuint fbo;
+	GLuint fboDepthBufferTexture;
+    GLuint fboTexture;
 
 	void drawVerticesForTexture(FTextureInfo *Texture, std::vector<Vertex> *verticesVector);
 	void generateMipMap(FTextureInfo *Texture, SDL_Surface *surface);
@@ -86,7 +86,7 @@ private:
 	SDL_Surface *createOrGetCachedSurface(FTextureInfo *Texture);
 
 	void initializeAndBindRenderingTexture();
-	void removeRenderingTexture();
+	void clearFbo();
 	void drawComplexSurfaceToTexture(FSurfaceInfo &Surface, FSurfaceFacet &Facet);
 	void drawFramebufferTextureOnScreen();
 

@@ -15,6 +15,7 @@ void clearTexturesCache() {
 	for (auto iter = std::cbegin(texturesCache); iter != std::cend(texturesCache); ++iter) {
 		glDeleteTextures(1, &iter->second);
 	}
+	texturesCache.clear();
 }
 
 float Aspect = 0.0f;
@@ -211,6 +212,9 @@ OpenGLRenderDevice::OpenGLRenderDevice(GameWindow *InWindow)
 	Framebuffers.reset(new GLFrameBufferManager(this));
 	Textures.reset(new GLTextureManager());
 	Shaders.reset(new GLShaderManager());
+
+	glGenBuffers(1, &vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 }
 
 OpenGLRenderDevice::~OpenGLRenderDevice()
@@ -229,7 +233,7 @@ void OpenGLRenderDevice::Flush(bool AllowPrecache)
 	std::cout << "OpenGLRenderDevice::Flush(bool AllowPrecache)" << std::endl;
 
 	clearTexturesCache();
-	removeRenderingTexture();
+	clearFbo();
 	initializeAndBindRenderingTexture();
 }
 
@@ -253,53 +257,30 @@ void OpenGLRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
 }
 
-void OpenGLRenderDevice::drawVerticesForTexture(FTextureInfo *Texture, std::vector<Vertex> *verticesVector) {
-	Vertex *vertices = verticesVector->data();
-	GLsizei verticesSize = sizeof(Vertex) * verticesVector->size();
-	GLuint shader_program = Shaders->shaders[DrawComplexSurfaceShader]->ProgramID;
-	GLint pos = glGetAttribLocation(shader_program, "vertex");
-
-	// glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-	// glEnable(GL_BLEND);
-
-	glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
-
-	glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
-	glEnableVertexAttribArray(pos);
-
-	glUseProgram(shader_program);
-
-	auto projectionMatrixUniform = glGetUniformLocation(shader_program, "objectToProjectionMatrix");
-	glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, (const GLfloat *)&objectToProjection);
-
-	glActiveTexture(GL_TEXTURE0);
-
-	GLint uvSlot = glGetAttribLocation(shader_program, "uvIn");
-	glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)(sizeof(Vertex::Position)));
-	glEnableVertexAttribArray(uvSlot);
-
-	auto palleteMode = GL_RGB;
-
+void OpenGLRenderDevice::bindTexture(FTextureInfo *texture) {
 	GLuint textureBinding;
 
-	auto textureWidth = Texture->Mips[0].Width;
-	auto textureHeight = Texture->Mips[0].Height;
+	auto textureWidth = texture->Mips[0].Width;
+	auto textureHeight = texture->Mips[0].Height;
 
-	if (texturesCache.find(Texture->CacheID) == texturesCache.end()) {
-	SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(
-		0,
-		textureWidth,
-		textureHeight,
-		24,
-		SDL_PIXELFORMAT_RGB24
-	);
+	if (texturesCache.find(texture->CacheID) == texturesCache.end()) {
+		SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(
+			0,
+			textureWidth,
+			textureHeight,
+			24,
+			SDL_PIXELFORMAT_RGB24
+		);
 
+		glGenTextures(1, &textureBinding);
 		glBindTexture(GL_TEXTURE_2D, textureBinding);
-		texturesCache[Texture->CacheID] = textureBinding;
+		texturesCache[texture->CacheID] = textureBinding;
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
-		generateMipMap(Texture, surface);
+		generateMipMap(texture, surface);
+
+		auto palleteMode = GL_RGB;
 
 		glTexImage2D(
 			GL_TEXTURE_2D, 
@@ -313,13 +294,38 @@ void OpenGLRenderDevice::drawVerticesForTexture(FTextureInfo *Texture, std::vect
 			surface->pixels
 		);
 	}
-	
-	textureBinding = texturesCache[Texture->CacheID];
-	glBindTexture(GL_TEXTURE_2D, textureBinding);
+	else {
+		textureBinding = texturesCache[texture->CacheID];
+		glBindTexture(GL_TEXTURE_2D, textureBinding);
+	}
+	glActiveTexture(GL_TEXTURE0);	
+}
 
-	glActiveTexture(GL_TEXTURE0);
+void OpenGLRenderDevice::drawVerticesForTexture(FTextureInfo *Texture, std::vector<Vertex> *verticesVector) {
 
+	GLuint shader_program = Shaders->shaders[DrawComplexSurfaceShader]->ProgramID;
+	glUseProgram(shader_program);
+
+	GLint pos = glGetAttribLocation(shader_program, "vertex");		
+	GLint uvSlot = glGetAttribLocation(shader_program, "uvIn");
 	GLint textureSlot = glGetUniformLocation(shader_program, "texture");
+
+	Vertex *vertices = verticesVector->data();
+	GLsizei verticesSize = sizeof(Vertex) * verticesVector->size();
+	
+	glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
+
+	glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
+	glEnableVertexAttribArray(pos);
+
+	auto projectionMatrixUniform = glGetUniformLocation(shader_program, "objectToProjectionMatrix");
+	glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, (const GLfloat *)&objectToProjection);
+
+	glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)(sizeof(Vertex::Position)));
+	glEnableVertexAttribArray(uvSlot);
+
+	bindTexture(Texture);
+
 	glUniform1i(textureSlot, 0);
 
 	glDrawArrays(
@@ -371,6 +377,11 @@ void OpenGLRenderDevice::generateMipMap(FTextureInfo *Texture, SDL_Surface *surf
 	{
 		UnrealMipmap* mipmap = &Texture->Mips[0];
 		uint8_t *mipmapData = mipmap->Data.data();
+
+		if (!mipmap || !mipmapData) {
+			std::cout << "mipmap or mipmapData is nullptr" << std::endl;
+			return;			
+		} 
 
 		GLuint textureFormat = TextureFormatToGL(Texture->Format);
 
@@ -495,33 +506,28 @@ void OpenGLRenderDevice::drawComplexSurfaceToTexture(FSurfaceInfo &Surface, FSur
 
 void OpenGLRenderDevice::initializeAndBindRenderingTexture() {
 	
-	glGenBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-
     auto textureWidth = 1920;
     auto textureHeight = 1080;
 
 	glGenFramebuffers(1, &fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-	glGenTextures(1, &textureBinding);
-
-	glGenTextures(1, &renderingTexture);
-	glBindTexture(GL_TEXTURE_2D, renderingTexture);
+	glGenTextures(1, &fboTexture);
+	glBindTexture(GL_TEXTURE_2D, fboTexture);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, textureWidth, textureHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	glGenTextures(1, &depthBufferTexture);
-	glBindTexture(GL_TEXTURE_2D, depthBufferTexture);
+	glGenTextures(1, &fboDepthBufferTexture);
+	glBindTexture(GL_TEXTURE_2D, fboDepthBufferTexture);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, textureWidth, textureHeight, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, NULL);
 
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthBufferTexture, 0);	
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, renderingTexture, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, fboDepthBufferTexture, 0);	
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fboTexture, 0);
 
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		std::cerr << "Error: Framebuffer is not complete!" << std::endl;
@@ -529,15 +535,21 @@ void OpenGLRenderDevice::initializeAndBindRenderingTexture() {
 	}
 }
 
-void OpenGLRenderDevice::removeRenderingTexture() {
-	glDeleteBuffers(1, &vbo);
+void OpenGLRenderDevice::clearFbo() {
 	glDeleteBuffers(1, &fbo);
-	glDeleteTextures(1, &textureBinding);
-	glDeleteTextures(1, &depthBufferTexture);
-	glDeleteTextures(1, &renderingTexture);
+	glDeleteTextures(1, &fboDepthBufferTexture);
+	glDeleteTextures(1, &fboTexture);
 }
 
 void OpenGLRenderDevice::drawFramebufferTextureOnScreen() {
+
+	GLuint shader_program = Shaders->shaders[DrawComplexSurfaceShader]->ProgramID;
+	glUseProgram(shader_program);
+
+	GLint pos = glGetAttribLocation(shader_program, "vertex");		
+	GLint uvSlot = glGetAttribLocation(shader_program, "uvIn");
+	GLint textureSlot = glGetUniformLocation(shader_program, "texture");
+
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glDisable(GL_DEPTH_TEST);
 
@@ -559,41 +571,24 @@ void OpenGLRenderDevice::drawFramebufferTextureOnScreen() {
 
 	GLsizei verticesSize = sizeof(Vertex) * verticesVector.size();
 
-	GLuint shader_program = Shaders->shaders[DrawComplexSurfaceShader]->ProgramID;
-	GLint pos = glGetAttribLocation(shader_program, "vertex");
-
-	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-	glEnable(GL_BLEND);
-
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 	glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
 
 	glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
 	glEnableVertexAttribArray(pos);
-
-	glUseProgram(shader_program);
 
 	auto projectionMatrixUniform = glGetUniformLocation(shader_program, "objectToProjectionMatrix");
 	glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, (const GLfloat *)&objectToProjection);
 
 	glActiveTexture(GL_TEXTURE0);
 
-	GLint uvSlot = glGetAttribLocation(shader_program, "uvIn");
 	glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)(sizeof(Vertex::Position)));
 	glEnableVertexAttribArray(uvSlot);
 
-	auto palleteMode = GL_RGB;
-
-	// GLuint textureBinding;
-	// glGenTextures(1, &textureBinding);
-	// glBindTexture(GL_TEXTURE_2D, textureBinding);
-	// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
 	glActiveTexture(GL_TEXTURE0);
 
-	glBindTexture(GL_TEXTURE_2D, renderingTexture);
+	glBindTexture(GL_TEXTURE_2D, fboTexture);
 
-	GLint textureSlot = glGetUniformLocation(shader_program, "texture");
 	glUniform1i(textureSlot, 0);
 
 	glDrawArrays(
@@ -601,13 +596,11 @@ void OpenGLRenderDevice::drawFramebufferTextureOnScreen() {
 		0,
 		verticesVector.size()
 	);
-
-	//glDeleteTextures(1, &textureBinding);
 }
 
 void OpenGLRenderDevice::DrawComplexSurface(FSceneNode *Frame, FSurfaceInfo &Surface, FSurfaceFacet &Facet)
 {
-	std::cout << "DrawComplexSurface(FSceneNode *Frame, FSurfaceInfo &Surface, FSurfaceFacet &Facet)" << std::endl;
+	//std::cout << "DrawComplexSurface(FSceneNode *Frame, FSurfaceInfo &Surface, FSurfaceFacet &Facet)" << std::endl;
 	drawComplexSurfaceToTexture(Surface, Facet);
 }
 
@@ -619,77 +612,34 @@ void OpenGLRenderDevice::DrawGouraudPolygon(
 	uint32_t PolyFlags
 )
 {
-	return;
-	auto textureWidth = Info.Mips[0].Width;
-	auto textureHeight = Info.Mips[0].Height;
+	GLuint shader_program = Shaders->shaders[DrawComplexSurfaceShader]->ProgramID;
+	glUseProgram(shader_program);
 
-	SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(
-		0,
-		textureWidth,
-		textureHeight,
-		24,
-		SDL_PIXELFORMAT_RGB24
-	);
+	GLint pos = glGetAttribLocation(shader_program, "vertex");		
+	GLint uvSlot = glGetAttribLocation(shader_program, "uvIn");
+	GLint textureSlot = glGetUniformLocation(shader_program, "texture");
 
 	std::vector<Vertex> verticesVector;
-
 	populateVertexBuffer(&verticesVector, Info, Pts, NumPts);
 
 	Vertex *vertices = verticesVector.data();
 
 	GLsizei verticesSize = sizeof(Vertex) * verticesVector.size();
 
-	GLuint shader_program = Shaders->shaders[DrawComplexSurfaceShader]->ProgramID;
-	GLint pos = glGetAttribLocation(shader_program, "vertex");
-
-	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-	glEnable(GL_BLEND);
-
 	GLuint vbo;
 
-	glGenBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 	glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
 
 	glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
 	glEnableVertexAttribArray(pos);
 
-	glUseProgram(shader_program);
-
 	auto projectionMatrixUniform = glGetUniformLocation(shader_program, "objectToProjectionMatrix");
 	glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, (const GLfloat *)&objectToProjection);
 
-	glActiveTexture(GL_TEXTURE0);
-
-	GLint uvSlot = glGetAttribLocation(shader_program, "uvIn");
 	glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)(sizeof(Vertex::Position)));
 	glEnableVertexAttribArray(uvSlot);
 
-	if (surface == nullptr)
-	{
-		std::cout << "CANT LOAD TEXT_TEXTURE!!!" << std::endl;
-		exit(1);
-	}
-
-	//swapColors(surfaceLength, surface);
-
-	auto palleteMode = GL_RGB;
-
-	GLuint textureBinding;
-	glGenTextures(1, &textureBinding);
-	glBindTexture(GL_TEXTURE_2D, textureBinding);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-	generateMipMap(&Info, surface);
-
-	glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
-
-	glActiveTexture(GL_TEXTURE0);
-
-	//SDL_FreeSurface(surface);
-	// glEnable(GL_DEPTH_TEST);
-	//glEnable(GL_CULL_FACE);
-	GLint textureSlot = glGetUniformLocation(shader_program, "texture");
+	bindTexture(&Info);
 	glUniform1i(textureSlot, 0);
 
 	glDrawArrays(
@@ -697,9 +647,6 @@ void OpenGLRenderDevice::DrawGouraudPolygon(
 		0,
 		verticesVector.size()
 	);
-
-	glDeleteBuffers(1, &vbo);
-	glDeleteTextures(1, &textureBinding);
 }
 
 void OpenGLRenderDevice::DrawTile(FSceneNode *Frame, FTextureInfo &Info,
@@ -707,7 +654,6 @@ void OpenGLRenderDevice::DrawTile(FSceneNode *Frame, FTextureInfo &Info,
 								  float U, float V, float UL, float VL, float Z,
 								  vec4 Color, vec4 Fog, uint32_t PolyFlags)
 {
-	return;
 	glDisable(GL_DEPTH_TEST);
 	auto width = Info.Mips[0].Width;
 	auto height = Info.Mips[0].Height;
@@ -739,13 +685,6 @@ void OpenGLRenderDevice::DrawTile(FSceneNode *Frame, FTextureInfo &Info,
 		2, 3, 0};
 	GLsizei indicesCount = 6;
 
-	auto shader_program = Shaders->shaders[DrawTileShader];
-	auto shaderProgramID = shader_program->ProgramID;
-	GLint pos = glGetAttribLocation(shaderProgramID, "vertex");
-
-	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-	glEnable(GL_BLEND);
-
 	glViewport(0, 0, 1920, 1080);
 
 	GLuint vbo, indexBuffer;
@@ -753,66 +692,26 @@ void OpenGLRenderDevice::DrawTile(FSceneNode *Frame, FTextureInfo &Info,
 	GLsizei verticesSize = sizeof(Vertex) * verticesCount;
 	GLsizei indicesSize = sizeof(GLuint) * indicesCount;
 
-	glGenBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 	glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
 
 	glGenBuffers(1, &indexBuffer);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesSize, indices, GL_STATIC_DRAW);
 
+	auto shader_program = Shaders->shaders[DrawTileShader];
+	auto shaderProgramID = shader_program->ProgramID;
+	glUseProgram(shaderProgramID);
+	auto pos = glGetAttribLocation(shaderProgramID, "vertex");
+
 	glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
 	glEnableVertexAttribArray(pos);
-
-	glUseProgram(shaderProgramID);
-
-	glActiveTexture(GL_TEXTURE0);
 
 	GLint uvSlot = glGetAttribLocation(shaderProgramID, "uvIn");
 	glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)(sizeof(Vertex::Position)));
 	glEnableVertexAttribArray(uvSlot);
 
-	auto textureWidth = Info.Mips[0].Width;
-	auto textureHeight = Info.Mips[0].Height;
+	bindTexture(&Info);
 
-	SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(
-		0,
-		textureWidth,
-		textureHeight,
-		24,
-		SDL_PIXELFORMAT_RGB24
-	);
-
-
-	if (surface == nullptr)
-	{
-		std::cout << "CANT LOAD TEXT_TEXTURE!!!" << std::endl;
-		exit(1);
-	}
-
-	auto palleteMode = GL_RGB;
-
-	GLuint textureBinding;
-	glGenTextures(1, &textureBinding);
-	glBindTexture(GL_TEXTURE_2D, textureBinding);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-	auto info = &Info;
-
-	size_t numMips = info->Texture->Mipmaps.size();
-	GLuint textureFormat = TextureFormatToGL(info->Format);
-
-	generateMipMap(info, surface);
-
-	glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
-
-	// BMP -> glTexImage2D(GL_TEXTURE_2D, 0, palleteMode, surface->w, surface->h, 0, palleteMode, GL_UNSIGNED_BYTE, surface->pixels);
-
-	glActiveTexture(GL_TEXTURE0);
-
-	//SDL_FreeSurface(surface);
-	// glEnable(GL_DEPTH_TEST);
-	// glEnable(GL_CULL_FACE);
 	GLint textureSlot = glGetUniformLocation(shaderProgramID, "texture");
 	glUniform1i(textureSlot, 0);
 
@@ -822,9 +721,7 @@ void OpenGLRenderDevice::DrawTile(FSceneNode *Frame, FTextureInfo &Info,
 		GL_UNSIGNED_INT,
 		0);
 
-	glDeleteBuffers(1, &vbo);
 	glDeleteBuffers(1, &indexBuffer);
-	glDeleteTextures(1, &textureBinding);
 }
 
 void OpenGLRenderDevice::Draw3DLine(FSceneNode *Frame, vec4 Color, vec3 P1, vec3 P2)
@@ -865,7 +762,7 @@ void OpenGLRenderDevice::EndFlash()
 
 void OpenGLRenderDevice::SetSceneNode(FSceneNode *Frame)
 {
-	std::cout << "SetSceneNode(FSceneNode *Frame)" << std::endl;
+	//std::cout << "SetSceneNode(FSceneNode *Frame)" << std::endl;
 	CurrentFrame = Frame;
 	Aspect = Frame->FY / Frame->FX;
 	RProjZ = (float)std::tan(radians(Frame->FovAngle) * 0.5);
