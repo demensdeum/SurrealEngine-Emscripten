@@ -11,10 +11,15 @@
 #include "GLDrawCommand.h"
 
 #include <GL/glew.h>
+#include <SDL2/SDL.h>
 
 #include "UObject/ULevel.h"
 
-
+typedef struct
+{
+	GLfloat Position[3];
+	GLfloat TextureUV[2];
+} Vertex;
 
 
 class OpenGLRenderDevice : public RenderDevice
@@ -74,6 +79,11 @@ private:
     GLuint fbo; // <- Rectangle Frame Buffer
 	GLuint depthBufferTexture;
     GLuint renderingTexture; // <- Rectangle Frame Buffer Texture
+
+	void drawVerticesForTexture(FTextureInfo *Texture, std::vector<Vertex> *verticesVector);
+	void generateMipMap(FTextureInfo *Texture, SDL_Surface *surface);
+	void generateMipMap(FSurfaceInfo &Surface, SDL_Surface *surface);
+	SDL_Surface *createOrGetCachedSurface(FTextureInfo *Texture);
 
 	void initializeAndBindRenderingTexture();
 	void removeRenderingTexture();
