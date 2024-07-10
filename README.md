@@ -3,7 +3,7 @@
 OpenGL Renderer partially from LupertEverett:  
 https://github.com/LupertEverett/SurrealEngine/tree/openglrenderdevice  
 
-Right now it runs engine, load code, UnrealScript runtime works, OpenGL renderer WIP, no sound.
+Right now it runs engine, load code, UnrealScript runtime works, OpenGL ES 2.0 / WebGL renderer WIP, no sound.
 
 Emscripten WebGL WIP Video: https://www.youtube.com/watch?v=5bqBFaFtXTg  
 
