@@ -513,7 +513,6 @@ set(CMAKE_CXX_FLAGS "-s MIN_WEBGL_VERSION=2 \
 -Wall \
 -Wextra \
 -Werror=return-type \
--lopenal \
 -s USE_SDL=2 \
 -s USE_SDL_TTF=2 \
 -s USE_SDL_IMAGE=2 \
@@ -568,7 +567,7 @@ source_group("Thirdparty\\dumb\\include" REGULAR_EXPRESSION "${CMAKE_CURRENT_SOU
 source_group("Thirdparty\\dumb\\include\\internal" REGULAR_EXPRESSION "${CMAKE_CURRENT_SOURCE_DIR}/Thirdparty/dumb/include/internal/.+")
 source_group("Thirdparty\\miniz" REGULAR_EXPRESSION "${CMAKE_CURRENT_SOURCE_DIR}/Thirdparty/miniz/.+")
 
-include_directories(SurrealEngine Thirdparty Thirdparty/glm Thirdparty/ZVulkan/include Thirdparty/ZWidget/include Thirdparty/dumb/include Thirdparty/openal-soft/include Thirdparty/miniz)
+include_directories(SurrealEngine Thirdparty Thirdparty/ZVulkan/include Thirdparty/ZWidget/include Thirdparty/dumb/include Thirdparty/miniz)
 
 if(NOT APPLE AND SDL2_FOUND)
 	include_directories(SurrealEngine ${SDL2_INCLUDE_DIRS})
@@ -615,7 +614,7 @@ target_precompile_headers(SurrealCommon PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${CMAK
 
 add_executable(SurrealEngine WIN32 MACOSX_BUNDLE ${SURREALENGINE_SOURCES})
 
-target_link_libraries(SurrealEngine SurrealCommon GL GLEW ${SURREALCOMMON_LIBS})
+target_link_libraries(SurrealEngine SurrealCommon GL GLEW openal ${SURREALCOMMON_LIBS})
 set_target_properties(SurrealEngine PROPERTIES CXX_STANDARD 17)
 
 if(WIN32)

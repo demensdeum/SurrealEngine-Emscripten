@@ -7,48 +7,6 @@
 #include "Engine.h"
 
 #include <iostream>
-#include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
-
-#define RENDERING_HACK 0
-#if RENDERING_HACK
-#include "RenderDevice/OpenGL/OpenGLRenderDevice.h"
-#endif
-
-glm::mat4 fillGLMMat4(const mat4 &source) {
-    glm::mat4 result;
-
-    for (int i = 0; i < 4; ++i) {
-        for (int j = 0; j < 4; ++j) {
-            result[j][i] = source.matrix[i * 4 + j];
-        }
-    }
-
-    return result;
-}
-
-void printTransform(const glm::mat4 &m) {
-    // Extract translation
-    glm::vec3 translation = glm::vec3(m[3][0], m[3][1], m[3][2]);
-    
-    // Extract rotation
-    glm::vec3 eulerAngles = glm::eulerAngles(glm::quat_cast(m));
-    
-    // Convert rotation from radians to degrees
-    eulerAngles = glm::degrees(eulerAngles);
-
-    std::cout << "Position (x, y, z): (" 
-              << translation.x << ", " 
-              << translation.y << ", " 
-              << translation.z << ")\n";
-
-    std::cout << "Rotation (x, y, z): (" 
-              << eulerAngles.x << ", " 
-              << eulerAngles.y << ", " 
-              << eulerAngles.z << ")\n";
-}
 
 void RenderSubsystem::DrawScene()
 {

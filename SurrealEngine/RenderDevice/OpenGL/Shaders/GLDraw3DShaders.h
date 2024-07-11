@@ -23,6 +23,8 @@ const std::string drawComplexSurfaceFragmentShadersCode =
     uniform sampler2D texture;
     void main() {
         //gl_FragColor = vec4(uvOut[1], uvOut[0], 0.0, 1.0);
-        gl_FragColor = texture2D(texture, uvOut);
+        vec4 outColor = texture2D(texture, uvOut);
+        //if (outColor.a < 0.5) discard;d
+        gl_FragColor = outColor;
     })";
     

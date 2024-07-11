@@ -240,7 +240,10 @@ public:
 		alListener3f(AL_POSITION, 0, 0, 0.0f);
 		alListener3f(AL_VELOCITY, 0, 0, 0);
 		alListenerfv(AL_ORIENTATION, listenerOri);
+
+#if !__EMSCRIPTEN__
 		alListenerf(AL_METERS_PER_UNIT, 1.f / UU_PER_METER);
+#endif
 
 		alDistanceModel(AL_LINEAR_DISTANCE_CLAMPED);
 		alSpeedOfSound(343.3f / (1.0f / UU_PER_METER));
@@ -257,6 +260,10 @@ public:
 
 		alcGetIntegerv(alDevice, ALC_MONO_SOURCES, 1, &monoSources);
 		alcGetIntegerv(alDevice, ALC_STEREO_SOURCES, 1, &stereoSources);
+
+#if __EMSCRIPTEN__
+		monoSources = 6;
+#endif
 
 		std::cout << "Mono sources count after:" << monoSources << std::endl;
 
@@ -709,7 +716,7 @@ public:
 
 std::unique_ptr<AudioDevice> AudioDevice::Create(int frequency, int numVoices, int musicBufferCount, int musicBufferSize)
 {
-	return std::make_unique<DummyAudioDevice>(frequency, numVoices, musicBufferCount, musicBufferSize);
+	return std::make_unique<OpenALAudioDevice>(frequency, numVoices, musicBufferCount, musicBufferSize);
 }
 
 std::unique_ptr<AudioDevice> AudioDevice::CreateUnused(int frequency, int numVoices, int musicBufferCount, int musicBufferSize)

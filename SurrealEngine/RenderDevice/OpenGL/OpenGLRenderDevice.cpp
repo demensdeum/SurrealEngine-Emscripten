@@ -206,6 +206,9 @@ std::vector<FColor> P8_Convert(FTextureInfo *info, size_t mipmapLevel)
 
 OpenGLRenderDevice::OpenGLRenderDevice(GameWindow *InWindow)
 {	
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
+
 	std::cout << "OpenGLRenderDevice::OpenGLRenderDevice(GameWindow* InWindow)" << std::endl;
 	Viewport = InWindow;
 
@@ -268,8 +271,8 @@ void OpenGLRenderDevice::bindTexture(FTextureInfo *texture) {
 			0,
 			textureWidth,
 			textureHeight,
-			24,
-			SDL_PIXELFORMAT_RGB24
+			32,
+			SDL_PIXELFORMAT_RGBA32
 		);
 
 		glGenTextures(1, &textureBinding);
@@ -280,7 +283,7 @@ void OpenGLRenderDevice::bindTexture(FTextureInfo *texture) {
 
 		generateMipMap(texture, surface);
 
-		auto palleteMode = GL_RGB;
+		auto palleteMode = GL_RGBA;
 
 		glTexImage2D(
 			GL_TEXTURE_2D, 
@@ -417,12 +420,15 @@ void OpenGLRenderDevice::generateMipMap(FTextureInfo *Texture, SDL_Surface *surf
 					auto redComponent = pixels[i];
 					auto greenComponent = pixels[i + 1];
 					auto blueComponent = pixels[i + 2];
+					auto alphaComponent = pixels[i + 3];
 
 					surfacePixels[cursor] = redComponent;
 					surfacePixels[cursor + 1] = greenComponent;
 					surfacePixels[cursor + 2] = blueComponent;
+					surfacePixels[cursor + 3] = alphaComponent;
 
-					cursor += 3;
+
+					cursor += 4;
 				}
 			}
 		}
