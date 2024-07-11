@@ -203,6 +203,7 @@ public:
 	OpenALAudioDevice(int inFrequency, int numVoices, int inMusicBufferCount, int inMusicBufferSize)
 	{
 		frequency = inFrequency;
+#if !__EMSCRIPTEN__		
 		musicBufferCount = inMusicBufferCount;
 		musicBufferSize = inMusicBufferSize;
 
@@ -214,6 +215,7 @@ public:
 			musicQueue.Push(&musicBuffer[musicBufferSize * i]);
 			musicQueue.Pop();
 		}
+#endif
 
 		// Init OpenAL
 		// TODO: Add device enumeration
@@ -262,7 +264,7 @@ public:
 		alcGetIntegerv(alDevice, ALC_STEREO_SOURCES, 1, &stereoSources);
 
 #if __EMSCRIPTEN__
-		monoSources = 6;
+		monoSources = 100;
 #endif
 
 		std::cout << "Mono sources count after:" << monoSources << std::endl;
@@ -277,18 +279,23 @@ public:
 		sources.resize(monoSources);		
 
 		// init music source/buffer
+#if !__EMSCRIPTEN__			
 		alGenSources(1, &alMusicSource);
 		alSourcei(alMusicSource, AL_SOURCE_SPATIALIZE_SOFT, AL_FALSE);
 
 		alMusicBuffers.resize(musicBufferCount);
 		alGenBuffers(musicBufferCount, &alMusicBuffers[0]);
+#endif
 
 		// init playback thread
+#if !__EMSCRIPTEN__
 		musicThreadData.thread = std::thread([=]() { MusicThreadMain(); });
+#endif
 	}
 
 	~OpenALAudioDevice()
 	{
+#if !__EMSCRIPTEN__			
 		std::unique_lock lock(musicThreadData.mutex);
 		musicThreadData.exitFlag = true;
 		lock.unlock();
@@ -298,6 +305,7 @@ public:
 		alDeleteSources(1, &alMusicSource);
 
 		alDeleteBuffers((ALsizei)alMusicBuffers.size(), &alMusicBuffers[0]);
+#endif
 
 		sources.clear();
 
@@ -351,15 +359,22 @@ public:
 
 	void PlayMusic(std::unique_ptr<AudioSource> source) override
 	{
+#if !__EMSCRIPTEN__			
 		std::unique_lock lock(musicThreadData.mutex);
 		musicThreadData.music = std::move(source);
 		musicThreadData.musicUpdate = true;
+#endif
 	}
 
 	int PlaySound(int channel, USound* sound, vec3& location, float volume, float radius, float pitch) override
 	{
-		if (!std::isfinite(volume) || volume < 0.0f || !std::isfinite(pitch) || channel >= sources.size())
+		if (!std::isfinite(volume) || volume < 0.0f || !std::isfinite(pitch) || channel >= sources.size()) {
+			std::cout << volume << std::endl;
+			std::cout << pitch << std::endl;
+			std::cout << channel << std::endl;
+			std::cout << sources.size() << std::endl;
 			Exception::Throw("Invalid PlaySound arguments");
+		}
 
 		ALSoundSource& source = sources[channel];
 		if (source.IsPlaying())
@@ -427,6 +442,7 @@ public:
 
 	void PlayMusicBuffer(AudioSource* music)
 	{
+#if !__EMSCRIPTEN__			
 		int format = (music->GetChannels() == 1) ? AL_FORMAT_MONO_FLOAT32 : AL_FORMAT_STEREO_FLOAT32;
 		int freq = music->GetFrequency();
 
@@ -445,10 +461,12 @@ public:
 		alSourcePlay(alMusicSource);
 		if (alGetError() != AL_NO_ERROR)
 			Exception::Throw("alSourcePlay failed in PlayMusicBuffer: " + getALErrorString());
+#endif
 	}
 
 	void UpdateMusicBuffer(AudioSource* music)
 	{
+#if !__EMSCRIPTEN__			
 		ALint status;
 		alGetSourcei(alMusicSource, AL_BUFFERS_PROCESSED, &status);
 
@@ -478,11 +496,14 @@ public:
 			if (alGetError() != AL_NO_ERROR)
 				Exception::Throw("alSourcePlay failed in PlayMusicBuffer: " + getALErrorString());
 		}
+#endif
 	}
 
 	void SetMusicVolume(float volume) override
 	{
+#if !__EMSCRIPTEN__			
 		alSourcef(alMusicSource, AL_GAIN, volume);
+#endif
 	}
 
 	void SetSoundVolume(float volume) override
@@ -511,6 +532,7 @@ public:
 
 	void MusicThreadMain()
 	{
+#if !__EMSCRIPTEN__			
 		std::unique_ptr<AudioSource> currentMusic;
 		bool musicPlaying = false;
 
@@ -562,13 +584,16 @@ public:
 			using namespace std::chrono_literals;
 			std::this_thread::sleep_for(5ms);
 		}
+#endif		
 	}
 
 	ALCdevice* alDevice = nullptr;
 	ALCcontext* alContext = nullptr;
 	ALenum alError = 0;
-	ALuint alMusicSource = 0;
+#if !__EMSCRIPTEN__	
+	ALuint alMusicSource = 0;	
 	std::vector<ALuint> alMusicBuffers;
+#endif
 	std::vector<ALSoundSource> sources;
 	ALint monoSources = 0;
 	ALint stereoSources = 0;
@@ -695,6 +720,7 @@ public:
 	int frequency = 48000;
 	std::vector<USound*> sounds;
 
+#if !__EMSCRIPTEN__
 	// Note: variables changed in musicThreadData *must* be done within a mutex lock to be thread safe
 	struct
 	{
@@ -712,6 +738,7 @@ public:
 	float currentMusicVolume = 0.0f;
 	float targetMusicVolume = 0.0f;
 	float fadeRate = 0.0f;
+#endif
 };
 
 std::unique_ptr<AudioDevice> AudioDevice::Create(int frequency, int numVoices, int musicBufferCount, int musicBufferSize)
