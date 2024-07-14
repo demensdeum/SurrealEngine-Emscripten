@@ -1,0 +1,73 @@
+<html>
+
+<style>
+    html,
+    body {
+        overflow: hidden;
+    }
+</style>
+
+<body style="background-color:black">
+    <div>
+        <center>
+            <div id="moduleStatusString" style="color: red; font-size: 30px;">Downloading...</div>
+            <canvas id="canvas"></canvas>
+        </center>
+    </div>
+    <script type="text/javascript">
+        var canvas = document.getElementById("canvas");
+        //make the canvas fullscreen
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        canvas.oncontextmenu = function (e) {
+            e.preventDefault();
+        };
+
+        var statusElement = document.getElementById('moduleStatusString');
+        var downloadingSymbolRightArrow = false;
+
+        //show Emscripten environment where the canvas is
+        var Module = {
+
+            setStatus: function (text) {
+                try {
+
+                    // Cool preloader
+                    var regexMatch = text.match("([0-9]*)\/([0-9]*)");
+                    var progress = "";
+                    if (regexMatch != null && regexMatch.length == 3) {
+                        var downloaded = parseFloat(regexMatch[1]) / 1024.0 / 1024.0;
+                        var total = parseFloat(regexMatch[2]) / 1024.0 / 1024.0;
+                        if (total == 0) {
+                            total = 1;
+                        }
+                        progress = Math.round(((downloaded / total) * 100)).toString() + "%";
+                        var downloadingSymbol = downloadingSymbolRightArrow == true ? ">" : "<";
+                        downloadingSymbolRightArrow = !downloadingSymbolRightArrow;
+                        var outputString = downloadingSymbol + " " + downloaded.toFixed(2).toString() + " MB / " + total.toFixed(2).toString() + " MB " + progress;
+                        statusElement.innerHTML = outputString;
+                    }
+                    else {
+                        statusElement.innerHTML = ""
+                    }
+                }
+                catch (error) {
+                    console.log(error);
+                    statusElement.innerHTML = ""
+                }
+            }
+
+        };
+        Module.canvas = canvas;
+    </script>
+    <script>
+        function checkFocus() {
+            window.focus();
+        }
+        window.setInterval(checkFocus, 1000); 
+    </script>
+    <script type="text/javascript" src="SurrealEngine.js"></script>
+</body>
+
+</html>
