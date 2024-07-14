@@ -8,6 +8,12 @@
 #include "UObject/USound.h"
 #include "UObject/UMusic.h"
 
+#if __EMSCRIPTEN__
+#include <iostream>
+std::unique_ptr<AudioDevice> AudioSubsystem::Device;
+#endif
+
+
 AudioSubsystem::AudioSubsystem()
 {
 	// TODO: Add configurable option for audio device

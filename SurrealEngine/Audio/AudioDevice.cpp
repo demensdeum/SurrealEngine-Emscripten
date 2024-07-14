@@ -169,25 +169,6 @@ private:
 	bool bIs3d = false;
 };
 
-class DummyAudioDevice: public AudioDevice
-{
-	public:
-		DummyAudioDevice(int inFrequency, int numVoices, int inMusicBufferCount, int inMusicBufferSize) {};
-		~DummyAudioDevice() {};
-		void AddSound(USound* sound) override {};
-		void RemoveSound(USound* sound) override {};
-		bool IsPlaying(int channel) override { return false; };
-		int PlaySound(int channel, USound* sound, vec3& location, float volume, float radius, float pitch) override {
-			return 0;
-		};
-		void PlayMusic(std::unique_ptr<AudioSource> source) override {};
-		void UpdateSound(int channel, USound* sound, vec3& location, float volume, float radius, float pitch) override {};
-		void StopSound(int channel) override {};
-		void SetMusicVolume(float volume) override {};
-		void SetSoundVolume(float volume) override {};
-		void Update() override {};
-};
-
 // TODO list:
 //  Sound looping
 //  Positional audio
@@ -201,9 +182,9 @@ class OpenALAudioDevice : public AudioDevice
 {
 public:
 	OpenALAudioDevice(int inFrequency, int numVoices, int inMusicBufferCount, int inMusicBufferSize)
-	{
+	{	
 		frequency = inFrequency;
-#if !__EMSCRIPTEN__		
+
 		musicBufferCount = inMusicBufferCount;
 		musicBufferSize = inMusicBufferSize;
 
@@ -215,7 +196,6 @@ public:
 			musicQueue.Push(&musicBuffer[musicBufferSize * i]);
 			musicQueue.Pop();
 		}
-#endif
 
 		// Init OpenAL
 		// TODO: Add device enumeration
@@ -243,7 +223,8 @@ public:
 		alListener3f(AL_VELOCITY, 0, 0, 0);
 		alListenerfv(AL_ORIENTATION, listenerOri);
 
-#if !__EMSCRIPTEN__
+#if __EMSCRIPTEN__
+#else
 		alListenerf(AL_METERS_PER_UNIT, 1.f / UU_PER_METER);
 #endif
 
@@ -264,7 +245,7 @@ public:
 		alcGetIntegerv(alDevice, ALC_STEREO_SOURCES, 1, &stereoSources);
 
 #if __EMSCRIPTEN__
-		monoSources = 100;
+		monoSources = 2048; // for some reason Emscripten's OpenAL gives infinite monoSources count, bug?
 #endif
 
 		std::cout << "Mono sources count after:" << monoSources << std::endl;
@@ -279,33 +260,37 @@ public:
 		sources.resize(monoSources);		
 
 		// init music source/buffer
-#if !__EMSCRIPTEN__			
+
 		alGenSources(1, &alMusicSource);
 		alSourcei(alMusicSource, AL_SOURCE_SPATIALIZE_SOFT, AL_FALSE);
 
 		alMusicBuffers.resize(musicBufferCount);
 		alGenBuffers(musicBufferCount, &alMusicBuffers[0]);
-#endif
 
 		// init playback thread
-#if !__EMSCRIPTEN__
+#if __EMSCRIPTEN__
+#else
 		musicThreadData.thread = std::thread([=]() { MusicThreadMain(); });
 #endif
 	}
 
 	~OpenALAudioDevice()
 	{
-#if !__EMSCRIPTEN__			
+#if __EMSCRIPTEN__			
+#else
 		std::unique_lock lock(musicThreadData.mutex);
+#endif
 		musicThreadData.exitFlag = true;
+#if __EMSCRIPTEN__					
+#else
 		lock.unlock();
 		musicThreadData.thread.join();
+#endif
 
 		alSourceStop(alMusicSource);
 		alDeleteSources(1, &alMusicSource);
 
 		alDeleteBuffers((ALsizei)alMusicBuffers.size(), &alMusicBuffers[0]);
-#endif
 
 		sources.clear();
 
@@ -359,11 +344,12 @@ public:
 
 	void PlayMusic(std::unique_ptr<AudioSource> source) override
 	{
-#if !__EMSCRIPTEN__			
+#if __EMSCRIPTEN__		
+#else
 		std::unique_lock lock(musicThreadData.mutex);
+#endif
 		musicThreadData.music = std::move(source);
 		musicThreadData.musicUpdate = true;
-#endif
 	}
 
 	int PlaySound(int channel, USound* sound, vec3& location, float volume, float radius, float pitch) override
@@ -442,7 +428,6 @@ public:
 
 	void PlayMusicBuffer(AudioSource* music)
 	{
-#if !__EMSCRIPTEN__			
 		int format = (music->GetChannels() == 1) ? AL_FORMAT_MONO_FLOAT32 : AL_FORMAT_STEREO_FLOAT32;
 		int freq = music->GetFrequency();
 
@@ -461,16 +446,26 @@ public:
 		alSourcePlay(alMusicSource);
 		if (alGetError() != AL_NO_ERROR)
 			Exception::Throw("alSourcePlay failed in PlayMusicBuffer: " + getALErrorString());
-#endif
 	}
+
+#if __EMSCRIPTEN__
+		ALint status;
+#endif
 
 	void UpdateMusicBuffer(AudioSource* music)
 	{
-#if !__EMSCRIPTEN__			
+#if __EMSCRIPTEN__			
+#else
 		ALint status;
+#endif
+
 		alGetSourcei(alMusicSource, AL_BUFFERS_PROCESSED, &status);
 
+#if __EMSCRIPTEN__	
+		if (status)		
+#else
 		while (status)
+#endif
 		{
 			ALuint buffer;
 			alSourceUnqueueBuffers(alMusicSource, 1, &buffer);
@@ -496,14 +491,11 @@ public:
 			if (alGetError() != AL_NO_ERROR)
 				Exception::Throw("alSourcePlay failed in PlayMusicBuffer: " + getALErrorString());
 		}
-#endif
 	}
 
 	void SetMusicVolume(float volume) override
 	{
-#if !__EMSCRIPTEN__			
 		alSourcef(alMusicSource, AL_GAIN, volume);
-#endif
 	}
 
 	void SetSoundVolume(float volume) override
@@ -530,9 +522,80 @@ public:
 		}
 	}
 
+#if __EMSCRIPTEN__
 	void MusicThreadMain()
 	{
-#if !__EMSCRIPTEN__			
+    static std::unique_ptr<AudioSource> currentMusic;
+    static bool musicPlaying = false;
+
+    // Предполагаем, что доступ к musicThreadData будет безопасным без мьютекса
+    if (musicThreadData.exitFlag)
+        return;
+
+    if (musicThreadData.musicUpdate)
+    {
+        if (musicPlaying)
+        {
+            alSourceStop(alMusicSource);
+            alSourceUnqueueBuffers(alMusicSource, (ALsizei)alMusicBuffers.size(), &alMusicBuffers[0]);
+            musicPlaying = false;
+        }
+        currentMusic = std::move(musicThreadData.music);
+        musicThreadData.musicUpdate = false;
+    }
+
+    // Never touch anything from musicThreadData after this point.
+
+    if (currentMusic && !musicPlaying)
+    {
+        // Буферизация всей музыки перед началом воспроизведения
+        int format = (currentMusic->GetChannels() == 1) ? AL_FORMAT_MONO_FLOAT32 : AL_FORMAT_STEREO_FLOAT32;
+        int freq = currentMusic->GetFrequency();
+
+        for (int i = 0; i < musicBufferCount; ++i)
+        {
+            currentMusic->ReadSamples(musicQueue.GetNextFree(), musicBufferSize);
+            alBufferData(alMusicBuffers[i], format, musicQueue.GetNextFree(), musicBufferSize * sizeof(float), freq);
+            alSourceQueueBuffers(alMusicSource, 1, &alMusicBuffers[i]);
+            musicQueue.Push(musicQueue.GetNextFree());
+        }
+
+        alSourcePlay(alMusicSource);
+        musicPlaying = true;
+    }
+    else if (currentMusic && musicPlaying)
+    {
+        // Проверяем и обновляем буфер
+        ALint processedBuffers;
+        alGetSourcei(alMusicSource, AL_BUFFERS_PROCESSED, &processedBuffers);
+
+        while (processedBuffers > 0)
+        {
+            ALuint buffer;
+            alSourceUnqueueBuffers(alMusicSource, 1, &buffer);
+            musicQueue.Pop();
+
+            currentMusic->ReadSamples(musicQueue.GetNextFree(), musicBufferSize);
+            int format = (currentMusic->GetChannels() == 1) ? AL_FORMAT_MONO_FLOAT32 : AL_FORMAT_STEREO_FLOAT32;
+            int freq = currentMusic->GetFrequency();
+            alBufferData(buffer, format, musicQueue.GetNextFree(), musicBufferSize * sizeof(float), freq);
+            alSourceQueueBuffers(alMusicSource, 1, &buffer);
+            musicQueue.Push(musicQueue.GetNextFree());
+
+            --processedBuffers;
+        }
+
+        ALint state;
+        alGetSourcei(alMusicSource, AL_SOURCE_STATE, &state);
+        if (state != AL_PLAYING)
+        {
+            alSourcePlay(alMusicSource);
+        }
+    }
+}
+#else
+	void MusicThreadMain()
+	{
 		std::unique_ptr<AudioSource> currentMusic;
 		bool musicPlaying = false;
 
@@ -552,7 +615,7 @@ public:
 				}
 				currentMusic = std::move(musicThreadData.music);
 				musicThreadData.musicUpdate = false;
-			}
+			}		
 			lock.unlock();
 			// Never touch anything from musicThreadData after this point.
 
@@ -583,17 +646,17 @@ public:
 			}
 			using namespace std::chrono_literals;
 			std::this_thread::sleep_for(5ms);
-		}
-#endif		
+		}	
 	}
+#endif
 
 	ALCdevice* alDevice = nullptr;
 	ALCcontext* alContext = nullptr;
 	ALenum alError = 0;
-#if !__EMSCRIPTEN__	
+
 	ALuint alMusicSource = 0;	
 	std::vector<ALuint> alMusicBuffers;
-#endif
+
 	std::vector<ALSoundSource> sources;
 	ALint monoSources = 0;
 	ALint stereoSources = 0;
@@ -720,16 +783,19 @@ public:
 	int frequency = 48000;
 	std::vector<USound*> sounds;
 
-#if !__EMSCRIPTEN__
 	// Note: variables changed in musicThreadData *must* be done within a mutex lock to be thread safe
 	struct
 	{
+#if __EMSCRIPTEN__
+#else
 		std::mutex mutex;
 		std::thread thread;
+#endif
 		bool exitFlag = false;
 		std::unique_ptr<AudioSource> music;
 		bool musicUpdate = false;
 	} musicThreadData;
+
 
 	RingQueue<float*> musicQueue;
 	int musicBufferCount = 0;
@@ -738,12 +804,12 @@ public:
 	float currentMusicVolume = 0.0f;
 	float targetMusicVolume = 0.0f;
 	float fadeRate = 0.0f;
-#endif
 };
 
 std::unique_ptr<AudioDevice> AudioDevice::Create(int frequency, int numVoices, int musicBufferCount, int musicBufferSize)
 {
-	return std::make_unique<OpenALAudioDevice>(frequency, numVoices, musicBufferCount, musicBufferSize);
+	auto device = std::make_unique<OpenALAudioDevice>(frequency, numVoices, musicBufferCount, musicBufferSize);
+	return device;
 }
 
 std::unique_ptr<AudioDevice> AudioDevice::CreateUnused(int frequency, int numVoices, int musicBufferCount, int musicBufferSize)

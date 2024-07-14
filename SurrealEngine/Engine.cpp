@@ -25,6 +25,7 @@
 #include "VM/ScriptCall.h"
 #include <chrono>
 #include <set>
+#include "Audio/AudioDevice.h"
 
 #include "RenderDevice/OpenGL/OpenGLRenderDevice.h"
 
@@ -110,6 +111,16 @@ void Engine::Run()
 	while (!quit)
 #endif
 	{
+
+#if __EMSCRIPTEN__
+	if (AudioSubsystem::Device.get()) {
+		AudioSubsystem::Device.get()->MusicThreadMain();
+	}
+	else {
+		std::cout << "AudioSubsystem::Device is null" << std::endl;
+	}
+#endif
+
 		float realTimeElapsed = CalcTimeElapsed();
 		float entryLevelElapsed = EntryLevel ? clamp(realTimeElapsed * EntryLevelInfo->TimeDilation(), 1.0f / 400.0f, 1.0f / 2.5f) : 0.0f;
 		float levelElapsed = clamp(realTimeElapsed * LevelInfo->TimeDilation(), 1.0f / 400.0f, 1.0f / 2.5f);

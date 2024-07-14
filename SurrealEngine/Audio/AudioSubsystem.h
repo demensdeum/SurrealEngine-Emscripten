@@ -64,7 +64,14 @@ private:
 	float AmbientFactor = 0.7f;
 	float DopplerSpeed = 9000.0f;
 
+#if __EMSCRIPTEN__
+public:
+	static std::unique_ptr<AudioDevice> Device;
+
+private:
+#else 
 	std::unique_ptr<AudioDevice> Device;
+#endif
 	std::vector<PlayingSound> PlayingSounds;
 	UMusic* CurrentSong = nullptr;
 	int CurrentSection = 255;

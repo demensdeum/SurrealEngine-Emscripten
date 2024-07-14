@@ -15,7 +15,7 @@
 
 namespace fs = std::filesystem;
 
-#ifdef EMSCRIPTEN
+#if __EMSCRIPTEN__
 #include <emscripten.h>
 Engine *EMSCRIPTEN_GLOBAL_GAME_ENGINE = nullptr;
 void emscripten_game_loop_step() {
