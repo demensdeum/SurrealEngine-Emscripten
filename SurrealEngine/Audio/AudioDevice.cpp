@@ -528,7 +528,6 @@ public:
     static std::unique_ptr<AudioSource> currentMusic;
     static bool musicPlaying = false;
 
-    // Предполагаем, что доступ к musicThreadData будет безопасным без мьютекса
     if (musicThreadData.exitFlag)
         return;
 
@@ -548,7 +547,6 @@ public:
 
     if (currentMusic && !musicPlaying)
     {
-        // Буферизация всей музыки перед началом воспроизведения
         int format = (currentMusic->GetChannels() == 1) ? AL_FORMAT_MONO_FLOAT32 : AL_FORMAT_STEREO_FLOAT32;
         int freq = currentMusic->GetFrequency();
 
@@ -565,7 +563,6 @@ public:
     }
     else if (currentMusic && musicPlaying)
     {
-        // Проверяем и обновляем буфер
         ALint processedBuffers;
         alGetSourcei(alMusicSource, AL_BUFFERS_PROCESSED, &processedBuffers);
 

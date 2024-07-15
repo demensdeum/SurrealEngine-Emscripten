@@ -1,3 +1,4 @@
+emcmake cmake ..
 emmake make -j 32
 cp SurrealEngine.data /srv/http/SurrealEngine/SurrealEngine.data
 cp SurrealEngine.js /srv/http/SurrealEngine/SurrealEngine.js
