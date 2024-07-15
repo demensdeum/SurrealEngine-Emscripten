@@ -1,5 +1,7 @@
 # Emscripten Build  
-  
+
+Fork of: https://github.com/dpjudas/SurrealEngine  
+
 OpenGL Renderer partially from LupertEverett:  
 https://github.com/LupertEverett/SurrealEngine/tree/openglrenderdevice  
 
