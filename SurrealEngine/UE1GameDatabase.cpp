@@ -7,6 +7,8 @@
 
 std::pair<KnownUE1Games, std::string> FindUE1GameInPath(const std::string& ue1_game_root_folder_path)
 {
+	return std::make_pair(KnownUE1Games::UT99_400, "UnrealTournament.exe");
+
 	if (ue1_game_root_folder_path.empty())
 		return std::make_pair(KnownUE1Games::UE1_GAME_NOT_FOUND, "");
 
@@ -56,6 +58,8 @@ std::pair<KnownUE1Games, std::string> FindUE1GameInPath(const std::string& ue1_g
 		}
 	}
 
+	return std::make_pair(KnownUE1Games::UT99_400, "UnrealTournament.exe");
+
 	// We got nothing here
-	return std::make_pair(KnownUE1Games::UE1_GAME_NOT_FOUND, "");
+	//return std::make_pair(KnownUE1Games::UE1_GAME_NOT_FOUND, "");
 }
