@@ -1,38 +1,46 @@
 <html>
-
 <style>
     html,
     body {
         overflow: hidden;
+        height: 100%;
+        margin: 0;
+    }
+    body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: black;
+    }
+    #moduleStatusString {
+        color: red;
+        font-size: 30px;
+        margin-bottom: 20px;
+    }
+    #canvas {
+        display: none;
+        border: 1px solid white;
     }
 </style>
-
-<body style="background-color:black">
-    <div>
-        <center>
-            <div id="moduleStatusString" style="color: red; font-size: 30px;">Downloading...</div>
-            <canvas id="canvas"></canvas>
-        </center>
+<body>
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <canvas id="canvas"></canvas>        
+        <div id="moduleStatusString">Downloading...</div>
     </div>
     <script type="text/javascript">
         var canvas = document.getElementById("canvas");
-        //make the canvas fullscreen
+        // make the canvas fullscreen
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-
         canvas.oncontextmenu = function (e) {
             e.preventDefault();
         };
-
         var statusElement = document.getElementById('moduleStatusString');
         var downloadingSymbolRightArrow = false;
-
-        //show Emscripten environment where the canvas is
+        // show Emscripten environment where the canvas is
         var Module = {
-
             setStatus: function (text) {
                 try {
-
                     // Cool preloader
                     var regexMatch = text.match("([0-9]*)\/([0-9]*)");
                     var progress = "";
@@ -42,22 +50,27 @@
                         if (total == 0) {
                             total = 1;
                         }
-                        progress = Math.round(((downloaded / total) * 100)).toString() + "%";
+                        let percent = (downloaded / total) * 100;
+                        progress = Math.round(percent).toString() + "%";
                         var downloadingSymbol = downloadingSymbolRightArrow == true ? ">" : "<";
                         downloadingSymbolRightArrow = !downloadingSymbolRightArrow;
                         var outputString = downloadingSymbol + " " + downloaded.toFixed(2).toString() + " MB / " + total.toFixed(2).toString() + " MB " + progress;
                         statusElement.innerHTML = outputString;
+                        if (percent > 99 && statusElement.style.display != "none") {
+                            statusElement.style.display = "none";
+                            let canvas = document.getElementById("canvas");
+                            canvas.style.display = "block";
+                        }
                     }
                     else {
-                        statusElement.innerHTML = ""
+                        statusElement.innerHTML = "";
                     }
                 }
                 catch (error) {
                     console.log(error);
-                    statusElement.innerHTML = ""
+                    statusElement.innerHTML = "";
                 }
             }
-
         };
         Module.canvas = canvas;
     </script>
@@ -69,5 +82,4 @@
     </script>
     <script type="text/javascript" src="SurrealEngine.js"></script>
 </body>
-
 </html>
