@@ -85,7 +85,7 @@ private:
 	void generateMipMap(FSurfaceInfo &Surface, SDL_Surface *surface);
 	SDL_Surface *createOrGetCachedSurface(FTextureInfo *Texture);
 
-	void initializeAndBindRenderingTexture();
+	void initializeAndBindFramebufferTexture();
 	void clearFbo();
 	void drawComplexSurfaceToTexture(FSurfaceInfo &Surface, FSurfaceFacet &Facet);
 	void drawFramebufferTextureOnScreen();

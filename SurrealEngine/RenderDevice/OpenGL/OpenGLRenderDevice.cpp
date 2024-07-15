@@ -9,6 +9,9 @@
 #include <SDL2/SDL.h>
 #include <iostream>
 
+const int framebufferWidth = 1920;
+const int framebufferHeight = 1080;
+
 std::map<uint64_t, GLuint> texturesCache;
 
 void clearTexturesCache() {
@@ -223,7 +226,7 @@ OpenGLRenderDevice::OpenGLRenderDevice(GameWindow *InWindow)
 OpenGLRenderDevice::~OpenGLRenderDevice()
 {
 	clearTexturesCache();
-	initializeAndBindRenderingTexture();
+	initializeAndBindFramebufferTexture();
 
 	Textures->ClearTextures();
 	Framebuffers.reset();
@@ -237,7 +240,7 @@ void OpenGLRenderDevice::Flush(bool AllowPrecache)
 
 	clearTexturesCache();
 	clearFbo();
-	initializeAndBindRenderingTexture();
+	initializeAndBindFramebufferTexture();
 }
 
 bool OpenGLRenderDevice::Exec(std::string Cmd, OutputDevice &Ar)
@@ -510,17 +513,13 @@ void OpenGLRenderDevice::drawComplexSurfaceToTexture(FSurfaceInfo &Surface, FSur
 	drawVerticesForTexture(Surface.Texture, &verticesVector);	
 }
 
-void OpenGLRenderDevice::initializeAndBindRenderingTexture() {
-	
-    auto textureWidth = 1920;
-    auto textureHeight = 1080;
-
+void OpenGLRenderDevice::initializeAndBindFramebufferTexture() {
 	glGenFramebuffers(1, &fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
 	glGenTextures(1, &fboTexture);
 	glBindTexture(GL_TEXTURE_2D, fboTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, textureWidth, textureHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, framebufferWidth, framebufferHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
@@ -530,7 +529,7 @@ void OpenGLRenderDevice::initializeAndBindRenderingTexture() {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, textureWidth, textureHeight, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, framebufferWidth, framebufferHeight, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, NULL);
 
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, fboDepthBufferTexture, 0);	
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fboTexture, 0);
@@ -660,22 +659,19 @@ void OpenGLRenderDevice::DrawTile(FSceneNode *Frame, FTextureInfo &Info,
 								  float U, float V, float UL, float VL, float Z,
 								  vec4 Color, vec4 Fog, uint32_t PolyFlags)
 {
-	glDisable(GL_DEPTH_TEST);
-	auto width = Info.Mips[0].Width;
-	auto height = Info.Mips[0].Height;
+    glDisable(GL_DEPTH_TEST);
+    auto width = Info.Mips[0].Width;
+    auto height = Info.Mips[0].Height;
 
-	GLfloat u = GLfloat(U) / width;
-	GLfloat v = GLfloat(V) / height;
-	GLfloat ul = GLfloat(UL) / width;
-	GLfloat vl = GLfloat(VL) / height;
+    GLfloat u = GLfloat(U) / width;
+    GLfloat v = GLfloat(V) / height;
+    GLfloat ul = GLfloat(UL) / width;
+    GLfloat vl = GLfloat(VL) / height;
 
-	GLfloat viewportWidth = 1920;
-	GLfloat viewportHeight = 1080;
-
-    GLfloat ndcX = (X / viewportWidth) * 2.0f - 1.0f;
-    GLfloat ndcY = (Y / viewportHeight) * 2.0f - 1.0f; // Invert Y-axis
-    GLfloat ndcXL = (XL / viewportWidth) * 2.0f;
-    GLfloat ndcYL = (YL / viewportHeight) * 2.0f;
+    GLfloat ndcX = (X / framebufferWidth) * 2.0f - 1.0f;
+    GLfloat ndcY = (Y / framebufferHeight) * 2.0f - 1.0f; // Invert Y-axis
+    GLfloat ndcXL = (XL / framebufferWidth) * 2.0f;
+    GLfloat ndcYL = (YL / framebufferHeight) * 2.0f;
 
     // Adjust the vertex positions for vertical flip and Y-axis inversion
     Vertex vertices[] = {
@@ -686,48 +682,48 @@ void OpenGLRenderDevice::DrawTile(FSceneNode *Frame, FTextureInfo &Info,
     };
     GLint verticesCount = 4;
 
-	GLuint indices[] = {
-		0, 1, 2,
-		2, 3, 0};
-	GLsizei indicesCount = 6;
+    GLuint indices[] = {
+        0, 1, 2,
+        2, 3, 0};
+    GLsizei indicesCount = 6;
 
-	glViewport(0, 0, 1920, 1080);
+    glViewport(0, 0, framebufferWidth, framebufferHeight);
 
-	GLuint vbo, indexBuffer;
+    GLuint vbo, indexBuffer;
 
-	GLsizei verticesSize = sizeof(Vertex) * verticesCount;
-	GLsizei indicesSize = sizeof(GLuint) * indicesCount;
+    GLsizei verticesSize = sizeof(Vertex) * verticesCount;
+    GLsizei indicesSize = sizeof(GLuint) * indicesCount;
 
-	glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
 
-	glGenBuffers(1, &indexBuffer);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesSize, indices, GL_STATIC_DRAW);
+    glGenBuffers(1, &indexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesSize, indices, GL_STATIC_DRAW);
 
-	auto shader_program = Shaders->shaders[DrawTileShader];
-	auto shaderProgramID = shader_program->ProgramID;
-	glUseProgram(shaderProgramID);
-	auto pos = glGetAttribLocation(shaderProgramID, "vertex");
+    auto shader_program = Shaders->shaders[DrawTileShader];
+    auto shaderProgramID = shader_program->ProgramID;
+    glUseProgram(shaderProgramID);
+    auto pos = glGetAttribLocation(shaderProgramID, "vertex");
 
-	glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
-	glEnableVertexAttribArray(pos);
+    glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
+    glEnableVertexAttribArray(pos);
 
-	GLint uvSlot = glGetAttribLocation(shaderProgramID, "uvIn");
-	glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)(sizeof(Vertex::Position)));
-	glEnableVertexAttribArray(uvSlot);
+    GLint uvSlot = glGetAttribLocation(shaderProgramID, "uvIn");
+    glVertexAttribPointer(uvSlot, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)(sizeof(Vertex::Position)));
+    glEnableVertexAttribArray(uvSlot);
 
-	bindTexture(&Info);
+    bindTexture(&Info);
 
-	GLint textureSlot = glGetUniformLocation(shaderProgramID, "texture");
-	glUniform1i(textureSlot, 0);
+    GLint textureSlot = glGetUniformLocation(shaderProgramID, "texture");
+    glUniform1i(textureSlot, 0);
 
-	glDrawElements(
-		GL_TRIANGLES,
-		indicesCount,
-		GL_UNSIGNED_INT,
-		0);
+    glDrawElements(
+        GL_TRIANGLES,
+        indicesCount,
+        GL_UNSIGNED_INT,
+        0);
 
-	glDeleteBuffers(1, &indexBuffer);
+    glDeleteBuffers(1, &indexBuffer);
 }
 
 void OpenGLRenderDevice::Draw3DLine(FSceneNode *Frame, vec4 Color, vec3 P1, vec3 P2)

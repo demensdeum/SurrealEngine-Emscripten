@@ -15,7 +15,6 @@
     #moduleStatusString {
         color: red;
         font-size: 30px;
-        margin-bottom: 20px;
     }
     #canvas {
         display: none;
@@ -35,6 +34,13 @@
         canvas.oncontextmenu = function (e) {
             e.preventDefault();
         };
+        function resizeCanvas() {
+            let scaleX = window.innerWidth / 1920;
+            let scaleY = window.innerHeight / 1080;
+            let scale = Math.min(scaleX, scaleY);
+            canvas.style.transform = `scaleX(${scale}) scaleY(${scale})`;
+        }
+        window.addEventListener('resize', resizeCanvas);
         var statusElement = document.getElementById('moduleStatusString');
         var downloadingSymbolRightArrow = false;
         // show Emscripten environment where the canvas is
@@ -60,6 +66,7 @@
                             statusElement.style.display = "none";
                             let canvas = document.getElementById("canvas");
                             canvas.style.display = "block";
+                            resizeCanvas();
                         }
                     }
                     else {
