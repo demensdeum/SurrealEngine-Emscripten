@@ -7,64 +7,70 @@
         margin: 0;
     }
     body {
+        font-family: Arial, Helvetica, sans-serif;
         display: flex;
         align-items: center;
         justify-content: center;
         background-color: black;
+        background-image: url("./background.png");
+        background-repeat: no-repeat;
+        background-size: cover;
+        background-position: cover;
     }
     #moduleStatusString {
-        color: red;
+        color: #4AF626;
+        text-align: center;
         font-size: 30px;
     }
     #canvas {
         display: none;
-        border: 1px solid white;
+        /*border: 1px solid white; Uncomment for layout debug*/
     }
 </style>
+<head>
+<title>Surreal Engine Emscripten Demo</title>
+</head>
 <body>
     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
         <canvas id="canvas"></canvas>        
-        <div id="moduleStatusString">Downloading Unreal Tournament Demo (338)...</div>
+        <div id="moduleStatusString">Should start downloading Unreal Tournament Demo (338)...</div>
     </div>
     <script type="text/javascript">
-        var canvas = document.getElementById("canvas");
+        let canvas = document.getElementById("canvas");
         // make the canvas fullscreen
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        canvas.oncontextmenu = function (e) {
+        canvas.oncontextmenu = (e) =>{
             e.preventDefault();
-        };
-        function resizeCanvas() {
+        }
+        let resizeCanvas = () => {
             let scaleX = window.innerWidth / 1920;
             let scaleY = window.innerHeight / 1080;
             let scale = Math.min(scaleX, scaleY);
             canvas.style.transform = `scaleX(${scale}) scaleY(${scale})`;
         }
         window.addEventListener('resize', resizeCanvas);
-        var statusElement = document.getElementById('moduleStatusString');
+        let statusElement = document.getElementById('moduleStatusString');
         var downloadingSymbolRightArrow = false;
-        // show Emscripten environment where the canvas is
         var Module = {
             setStatus: function (text) {
                 try {
                     // Cool preloader
-                    var regexMatch = text.match("([0-9]*)\/([0-9]*)");
-                    var progress = "";
+                    let regexMatch = text.match("([0-9]*)\/([0-9]*)");
                     if (regexMatch != null && regexMatch.length == 3) {
-                        var downloaded = parseFloat(regexMatch[1]) / 1024.0 / 1024.0;
+                        let downloaded = parseFloat(regexMatch[1]) / 1024.0 / 1024.0;
                         var total = parseFloat(regexMatch[2]) / 1024.0 / 1024.0;
                         if (total == 0) {
                             total = 1;
                         }
                         let percent = (downloaded / total) * 100;
-                        progress = Math.round(percent).toString() + "%";
-                        var downloadingSymbol = downloadingSymbolRightArrow == true ? ">" : "<";
+                        let progress = Math.round(percent).toString() + "%";
+                        let downloadingSymbol = downloadingSymbolRightArrow == true ? ">" : "<";
                         downloadingSymbolRightArrow = !downloadingSymbolRightArrow;
-                        var outputString = downloadingSymbol + " " + downloaded.toFixed(2).toString() + " MB / " + total.toFixed(2).toString() + " MB " + progress;
+                        let outputString = "Downloading Unreal Tournament Demo (338)...<br>" + downloadingSymbol + " " + downloaded.toFixed(2).toString() + " MB / " + total.toFixed(2).toString() + " MB " + progress;
                         statusElement.innerHTML = outputString;
                         if (percent > 99 && statusElement.style.display != "none") {
                             statusElement.style.display = "none";
-                            let canvas = document.getElementById("canvas");
                             canvas.style.display = "block";
                             resizeCanvas();
                         }
@@ -75,14 +81,14 @@
                 }
                 catch (error) {
                     console.log(error);
-                    statusElement.innerHTML = "";
+                    statusElement.innerHTML = `Error: ${error.toString()}`;
                 }
             }
         };
         Module.canvas = canvas;
     </script>
     <script>
-        function checkFocus() {
+        let checkFocus=()=>{
             window.focus();
         }
         window.setInterval(checkFocus, 1000); 
