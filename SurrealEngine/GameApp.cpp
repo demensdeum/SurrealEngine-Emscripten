@@ -41,8 +41,14 @@ int GameApp::main(std::vector<std::string> args)
 	std::cout << "GameApp main" << std::endl;	
 	args.clear();
 	args.push_back("SurrealEngine");
-	args.push_back("UnrealTournament");
+
+
+#if __EMSCRIPTEN__
+	args.push_back("DEMO_UnrealTournament");
 	args.push_back("--url=DM-TempestDEMO.unr");
+#else
+	args.push_back("UnrealTournament");
+#endif
 
 	std::cout << "DisplayBackend::TryCreateSDL2()" << std::endl;	
 	auto backend = DisplayBackend::TryCreateSDL2();

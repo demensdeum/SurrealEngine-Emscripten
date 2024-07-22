@@ -7,7 +7,9 @@
 
 std::pair<KnownUE1Games, std::string> FindUE1GameInPath(const std::string& ue1_game_root_folder_path)
 {
+#if __EMSCRIPTEN__
 	return std::make_pair(KnownUE1Games::UT99_400, "UnrealTournament.exe");
+#endif
 
 	if (ue1_game_root_folder_path.empty())
 		return std::make_pair(KnownUE1Games::UE1_GAME_NOT_FOUND, "");

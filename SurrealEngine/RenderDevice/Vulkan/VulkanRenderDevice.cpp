@@ -13,6 +13,8 @@
 #include "Window/Window.h"
 #include <set>
 
+VulkanSurface *VulkanRenderDevice::surface = nullptr;
+
 void VulkanPrintLog(const char* typestr, const std::string& msg)
 {
 	//debugf("[%s] %s", typestr, msg.c_str());
@@ -23,7 +25,7 @@ void VulkanError(const char* text)
 	Exception::Throw(text);
 }
 
-VulkanRenderDevice::VulkanRenderDevice(GameWindow* InViewport, std::shared_ptr<VulkanSurface> surface)
+VulkanRenderDevice::VulkanRenderDevice(GameWindow* InViewport, VulkanSurface *surface)
 {
 	Viewport = InViewport;
 

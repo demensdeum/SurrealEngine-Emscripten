@@ -14,13 +14,14 @@
 #include "UploadManager.h"
 #include "Math/mat.h"
 #include "Math/vec.h"
+#include <memory>
 
 class CachedTexture;
 
 class VulkanRenderDevice : public RenderDevice
 {
 public:
-	VulkanRenderDevice(GameWindow* InViewport, std::shared_ptr<VulkanSurface> surface);
+	VulkanRenderDevice(GameWindow* InViewport, VulkanSurface *surface);
 	~VulkanRenderDevice();
 
 	void Flush(bool AllowPrecache) override;
@@ -40,6 +41,8 @@ public:
 	void PrecacheTexture(FTextureInfo& Info, uint32_t PolyFlags) override;
 	bool SupportsTextureFormat(TextureFormat Format) override;
 	void UpdateTextureRect(FTextureInfo& Info, int U, int V, int UL, int VL) override;
+
+	static VulkanSurface *surface;
 
 	std::shared_ptr<VulkanDevice> Device;
 

@@ -1,16 +1,21 @@
 
 #include "Precomp.h"
 #include "RenderDevice.h"
-#include "Vulkan/VulkanRenderDevice.h"
+
+#if __EMSCRIPTEN__
 #include "OpenGL/OpenGLRenderDevice.h"
+#else
+#include "Vulkan/VulkanRenderDevice.h"
+#endif
+
 
 #include <iostream>
 
 std::unique_ptr<RenderDevice> RenderDevice::Create(GameWindow* viewport)
 {
+#if __EMSCRIPTEN__
 	return std::make_unique<OpenGLRenderDevice>(viewport);
-}
-
-std::unique_ptr<RenderDevice> RenderDevice::CreateUnused(GameWindow* viewport, std::shared_ptr<VulkanSurface> surface) {
-	return std::make_unique<VulkanRenderDevice>(viewport, surface);
+#else
+	return std::make_unique<VulkanRenderDevice>(viewport, VulkanRenderDevice::surface);
+#endif
 }

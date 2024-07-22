@@ -6,7 +6,7 @@
 #include <set>
 #include <string>
 
-VulkanDevice::VulkanDevice(std::shared_ptr<VulkanInstance> instance, std::shared_ptr<VulkanSurface> surface, const VulkanCompatibleDevice& selectedDevice) : Instance(instance), Surface(surface)
+VulkanDevice::VulkanDevice(std::shared_ptr<VulkanInstance> instance, VulkanSurface *surface, const VulkanCompatibleDevice& selectedDevice) : Instance(instance), Surface(surface)
 {
 	PhysicalDevice = *selectedDevice.Device;
 	EnabledDeviceExtensions = selectedDevice.EnabledDeviceExtensions;

@@ -1598,7 +1598,7 @@ VulkanDeviceBuilder& VulkanDeviceBuilder::OptionalDescriptorIndexing()
 	return *this;
 }
 
-VulkanDeviceBuilder& VulkanDeviceBuilder::Surface(std::shared_ptr<VulkanSurface> surface)
+VulkanDeviceBuilder& VulkanDeviceBuilder::Surface(VulkanSurface *surface)
 {
 	if (surface)
 	{

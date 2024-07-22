@@ -18,7 +18,7 @@ class VulkanCompatibleDevice;
 class VulkanDevice
 {
 public:
-	VulkanDevice(std::shared_ptr<VulkanInstance> instance, std::shared_ptr<VulkanSurface> surface, const VulkanCompatibleDevice& selectedDevice);
+	VulkanDevice(std::shared_ptr<VulkanInstance> instance, VulkanSurface *surface, const VulkanCompatibleDevice& selectedDevice);
 	~VulkanDevice();
 
 	std::set<std::string> EnabledDeviceExtensions;
@@ -27,7 +27,7 @@ public:
 	VulkanPhysicalDevice PhysicalDevice;
 
 	std::shared_ptr<VulkanInstance> Instance;
-	std::shared_ptr<VulkanSurface> Surface;
+	VulkanSurface *Surface;
 
 	VkDevice device = VK_NULL_HANDLE;
 	VmaAllocator allocator = VK_NULL_HANDLE;

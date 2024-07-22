@@ -11,42 +11,45 @@
 
 GameLaunchInfo GameFolderSelection::GetLaunchInfo()
 {
-	// std::vector<GameLaunchInfo> foundGames;
 
-	// for (const std::string& folder : commandline->GetItems())
-	// {
-	// 	GameLaunchInfo game = ExamineFolder(folder);
-	// 	if (!game.gameName.empty())
-	// 		foundGames.push_back(game);
-	// }
+#if !__EMSCRIPTEN__
+	std::vector<GameLaunchInfo> foundGames;
 
-	// if (foundGames.empty())
-	// {
-	// 	// Check if we're within an UE1-game System folder.
-	// 	auto p = std::filesystem::current_path();
-	// 	if (p.filename().string() == "System")
-	// 	{
-	// 		GameLaunchInfo game = ExamineFolder(p.parent_path().string());
-	// 		if (!game.gameName.empty())
-	// 			foundGames.push_back(game);
-	// 	}
-	// }
+	for (const std::string& folder : commandline->GetItems())
+	{
+		GameLaunchInfo game = ExamineFolder(folder);
+		if (!game.gameName.empty())
+			foundGames.push_back(game);
+	}
 
-	// if (foundGames.empty())
-	// {
-	// 	for (const std::string& folder : FindGameFolders())
-	// 	{
-	// 		GameLaunchInfo game = ExamineFolder(folder);
-	// 		if (!game.gameName.empty())
-	// 			foundGames.push_back(game);
-	// 	}
-	// }
+	if (foundGames.empty())
+	{
+		// Check if we're within an UE1-game System folder.
+		auto p = std::filesystem::current_path();
+		if (p.filename().string() == "System")
+		{
+			GameLaunchInfo game = ExamineFolder(p.parent_path().string());
+			if (!game.gameName.empty())
+				foundGames.push_back(game);
+		}
+	}
+
+	if (foundGames.empty())
+	{
+		for (const std::string& folder : FindGameFolders())
+		{
+			GameLaunchInfo game = ExamineFolder(folder);
+			if (!game.gameName.empty())
+				foundGames.push_back(game);
+		}
+	}
 	
-	// if (foundGames.empty())
-	// {
-	// 	// If we STILL didn't find anything, then there is nothing else we can do
-	// 	Exception::Throw("Unable to find a game folder");
-	// }
+	if (foundGames.empty())
+	{
+		// If we STILL didn't find anything, then there is nothing else we can do
+		Exception::Throw("Unable to find a game folder");
+	}
+#endif
 
 	// int selectedGame = LauncherWindow::ExecModal(foundGames);
 	// if (selectedGame < 0)
@@ -56,6 +59,7 @@ GameLaunchInfo GameFolderSelection::GetLaunchInfo()
 
 	std::cout << "Selected game: " << selectedGame << std::endl;
 
+#if __EMSCRIPTEN__
 	GameLaunchInfo info;
 	info.engineVersion = 227;					// Engine version (e.g. 226, 227, 436...)
 	info.engineSubVersion = 0;				// Engine sub version displayed as a letter (Note: Isn't always consistent)
@@ -65,12 +69,15 @@ GameLaunchInfo GameFolderSelection::GetLaunchInfo()
 	info.gameExecutableName = "UnrealTournament";	// Name of the game executable (e.g. "UnrealTournament")
 	info.gameVersionString = "227j";		// Version (+ sub version) info as a string (e.g. "469d")
 	info.url = "UnrealTournament";	
-	// GameLaunchInfo info = foundGames[selectedGame];
+#else
+	GameLaunchInfo info = foundGames[selectedGame];
 
 	info.engineVersion = commandline->GetArgInt("-e", "--engineversion", info.engineVersion);
 	info.gameName = commandline->GetArg("-g", "--game", info.gameName);
 	info.noEntryMap = commandline->HasArg("-n", "--noentrymap") || info.noEntryMap;
 	info.url = commandline->GetArg("-u", "--url", info.url);
+#endif
+
 
 	return info;
 }

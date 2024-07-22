@@ -169,6 +169,23 @@ private:
 	bool bIs3d = false;
 };
 
+class DummyAudioDevice : public AudioDevice
+{
+public:
+	DummyAudioDevice(int inFrequency, int numVoices, int inMusicBufferCount, int inMusicBufferSize) {}
+	~DummyAudioDevice() {};
+	void AddSound(USound* sound) {};
+	void RemoveSound(USound* sound) {};
+	bool IsPlaying(int channel) { return false; };
+	int  PlaySound(int channel, USound* sound, vec3& location, float volume, float radius, float pitch) { return 0; };
+	void PlayMusic(std::unique_ptr<AudioSource> source) {};
+	void UpdateSound(int channel, USound* sound, vec3& location, float volume, float radius, float pitch) {};
+	void StopSound(int channel) {};
+	void SetMusicVolume(float volume) {};
+	void SetSoundVolume(float volume) {};
+	void Update() {};
+};
+
 // TODO list:
 //  Sound looping
 //  Positional audio
@@ -805,11 +822,10 @@ public:
 
 std::unique_ptr<AudioDevice> AudioDevice::Create(int frequency, int numVoices, int musicBufferCount, int musicBufferSize)
 {
+#if __EMSCRIPTEN__
 	auto device = std::make_unique<OpenALAudioDevice>(frequency, numVoices, musicBufferCount, musicBufferSize);
+#else
+	auto device = std::make_unique<DummyAudioDevice>(frequency, numVoices, musicBufferCount, musicBufferSize);
+#endif
 	return device;
-}
-
-std::unique_ptr<AudioDevice> AudioDevice::CreateUnused(int frequency, int numVoices, int musicBufferCount, int musicBufferSize)
-{
-	return std::make_unique<OpenALAudioDevice>(frequency, numVoices, musicBufferCount, musicBufferSize);
 }

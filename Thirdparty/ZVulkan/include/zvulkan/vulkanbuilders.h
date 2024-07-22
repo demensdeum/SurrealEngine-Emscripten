@@ -52,7 +52,7 @@ public:
 	VulkanDeviceBuilder& OptionalExtension(const std::string& extensionName);
 	VulkanDeviceBuilder& OptionalRayQuery();
 	VulkanDeviceBuilder& OptionalDescriptorIndexing();
-	VulkanDeviceBuilder& Surface(std::shared_ptr<VulkanSurface> surface);
+	VulkanDeviceBuilder& Surface(VulkanSurface *surface);
 	VulkanDeviceBuilder& SelectDevice(int index);
 
 	std::vector<VulkanCompatibleDevice> FindDevices(const std::shared_ptr<VulkanInstance>& instance);
@@ -61,7 +61,7 @@ public:
 private:
 	std::set<std::string> requiredDeviceExtensions;
 	std::set<std::string> optionalDeviceExtensions;
-	std::shared_ptr<VulkanSurface> surface;
+	VulkanSurface *surface;
 	int deviceIndex = 0;
 };
 

@@ -12,6 +12,10 @@
 
 #include <iostream>
 
+#if !__EMSCRIPTEN__
+#include "../../RenderDevice/Vulkan/VulkanRenderDevice.h"
+#endif
+
 std::map<int, SDL2Window*> SDL2Window::windows;
 bool SDL2Window::exitRunLoop = false;
 
@@ -32,8 +36,7 @@ SDL2Window::SDL2Window(GameWindowHost *windowHost) : windowHost(windowHost)
     }
     // Width and height won't matter much as the window will be resized based on the values in [GameExecutableName].ini anyways
 
-#define NATIVE_OPENGL_ENABLED
-#if defined EMSCRIPTEN || defined NATIVE_OPENGL_ENABLED
+#if __EMSCRIPTEN__
 
     // NATIVE VERSION
     // SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
@@ -141,8 +144,9 @@ SDL2Window::SDL2Window(GameWindowHost *windowHost) : windowHost(windowHost)
     VkSurfaceKHR surfaceHandle;
     SDL_Vulkan_CreateSurface(m_SDLWindow, instance->Instance, &surfaceHandle);
 
-    auto surface = std::make_shared<VulkanSurface>(instance, surfaceHandle);
-    rendDevice = RenderDevice::Create(this, surface);
+    VulkanSurface *surface = new VulkanSurface(instance, surfaceHandle);
+    VulkanRenderDevice::surface = surface;
+    rendDevice = RenderDevice::Create(this);
 #endif
     windows[SDL_GetWindowID(m_SDLWindow)] = this;
 }
