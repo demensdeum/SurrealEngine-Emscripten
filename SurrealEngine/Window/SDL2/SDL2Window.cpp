@@ -118,7 +118,9 @@ SDL2Window::SDL2Window(GameWindowHost *windowHost) : windowHost(windowHost)
     rendDevice = RenderDevice::Create(this);
 #else
 
-    m_SDLWindow = SDL_CreateWindow("Surreal Engine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, SDL_WINDOW_VULKAN);
+    m_SDLWindow = SDL_CreateWindow("Surreal Engine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1920, 1080, SDL_WINDOW_VULKAN);
+
+    SDL2Window::currentWindow = m_SDLWindow;
 
     if (!m_SDLWindow) {
         SDLWindowError("Unable to create SDL Window: " + std::string(SDL_GetError()));

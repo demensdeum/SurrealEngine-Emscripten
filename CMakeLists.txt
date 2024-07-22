@@ -612,7 +612,7 @@ target_precompile_headers(SurrealCommon PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${CMAK
 
 add_executable(SurrealEngine WIN32 MACOSX_BUNDLE ${SURREALENGINE_SOURCES})
 
-target_link_libraries(SurrealEngine SurrealCommon GL GLEW ${SURREALCOMMON_LIBS})
+target_link_libraries(SurrealEngine SurrealCommon GL GLEW bgfx ${SURREALCOMMON_LIBS})
 set_target_properties(SurrealEngine PROPERTIES CXX_STANDARD 17)
 
 if(WIN32)

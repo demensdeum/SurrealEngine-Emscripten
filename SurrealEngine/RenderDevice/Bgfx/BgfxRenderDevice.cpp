@@ -1,7 +1,54 @@
 #include "BgfxRenderDevice.h"
 
-BgfxRenderDevice::BgfxRenderDevice(GameWindow *InWindow) {
+#include <bgfx/bgfx.h>
+#include <bgfx/platform.h>
+#include <stdexcept>
+#include "Window/SDL2/SDL2Window.h"
+#include <SDL2/SDL_syswm.h>
 
+BgfxRenderDevice::BgfxRenderDevice(GameWindow *InWindow) {
+        auto window = SDL2Window::currentWindow;
+
+        if (!window) {
+            throw std::runtime_error(std::string("Can't get SDL2Window::currentWindow"));            
+        }
+
+        SDL_SysWMinfo wmi;
+        SDL_VERSION(&wmi.version);
+        if (!SDL_GetWindowWMInfo(window, &wmi))
+        {
+            throw std::runtime_error(std::string("Can't get wmi"));
+        }
+
+        bgfx::PlatformData platformData{};
+#if BX_PLATFORM_LINUX || BX_PLATFORM_BSD
+        platformData.ndt = wmi.info.x11.display;
+        platformData.nwh = (void *)(uintptr_t)wmi.info.x11.window;
+#elif BX_PLATFORM_OSX
+        pd.ndt = NULL;
+        pd.nwh = wmi.info.cocoa.window;
+#elif BX_PLATFORM_WINDOWS
+        pd.ndt = NULL;
+        pd.nwh = wmi.info.win.window;
+#elif BX_PLATFORM_STEAMLINK
+        pd.ndt = wmi.info.vivante.display;
+        pd.nwh = wmi.info.vivante.window;
+#endif
+        platformData.context = NULL;
+        platformData.backBuffer = NULL;
+        platformData.backBufferDS = NULL;
+
+        bgfx::Init init;
+        init.type = bgfx::RendererType::Vulkan;
+        init.resolution.width = 1920;
+        init.resolution.height = 1080;
+        init.resolution.reset = BGFX_RESET_VSYNC;
+        init.platformData = platformData;
+
+        if (!bgfx::init(init))
+        {
+            throw std::runtime_error("Failed to initialize bgfx");
+        }    
 }
 
 BgfxRenderDevice::~BgfxRenderDevice() {
