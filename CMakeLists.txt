@@ -180,6 +180,9 @@ set(SURREALCOMMON_SOURCES
 	SurrealEngine/Native/NPlayerPawnExt.cpp
 	SurrealEngine/Native/NPlayerPawnExt.h
 
+	SurrealEngine/RenderDevice/Bgfx/BgfxRenderDevice.h
+	SurrealEngine/RenderDevice/Bgfx/BgfxRenderDevice.cpp
+
 	SurrealEngine/RenderDevice/OpenGL/OpenGLRenderDevice.cpp
 	SurrealEngine/RenderDevice/OpenGL/OpenGLRenderDevice.h
 	SurrealEngine/RenderDevice/OpenGL/GLObjects.cpp
