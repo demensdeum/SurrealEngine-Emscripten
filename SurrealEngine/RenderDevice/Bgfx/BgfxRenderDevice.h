@@ -24,4 +24,7 @@ public:
 	void PrecacheTexture(FTextureInfo& Info, uint32_t PolyFlags);
 	bool SupportsTextureFormat(TextureFormat Format);
 	void UpdateTextureRect(FTextureInfo& Info, int U, int V, int UL, int VL);
+
+private:
+	std::chrono::milliseconds renderingStartDate;
 };
