@@ -1,2 +1,3 @@
 clear
-cmake --fresh .. && make -j 16 
+../buildScripts/Native/buildShaders.sh
+cmake --fresh .. && make -j 16

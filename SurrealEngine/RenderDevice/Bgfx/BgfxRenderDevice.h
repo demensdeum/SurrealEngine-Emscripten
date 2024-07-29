@@ -1,6 +1,7 @@
 #pragma once
 
 #include "RenderDevice/RenderDevice.h"
+#include <bgfx/bgfx.h>
 
 class BgfxRenderDevice: public RenderDevice {
 
@@ -26,5 +27,33 @@ public:
 	void UpdateTextureRect(FTextureInfo& Info, int U, int V, int UL, int VL);
 
 private:
+        struct Vertex3D_UV
+        {
+            float x;
+            float y;
+            float z;
+            float u;
+            float v;
+
+            static void init()
+            {
+                Vertex3D_UV::ms_layout
+                    .begin()
+                    .add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
+                    .add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
+                    .end();
+            };
+
+            static bgfx::VertexLayout ms_layout;
+        };
+
+	bgfx::ProgramHandle drawTileProgram;
+
+	std::vector<char> drawTileVertexShaderCode;
+	std::vector<char> drawTileFragmentShaderCode;
+
+	std::vector<char> draw3DVertexShaderCode;
+	std::vector<char> draw3DFragmentShaderCode;
+
 	std::chrono::milliseconds renderingStartDate;
 };
