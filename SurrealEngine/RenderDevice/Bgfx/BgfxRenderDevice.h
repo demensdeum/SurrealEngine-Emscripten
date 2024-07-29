@@ -49,6 +49,11 @@ private:
 
 	bgfx::ProgramHandle drawTileProgram;
 
+	std::vector<bgfx::VertexBufferHandle> vertexBuffers;
+	std::vector<bgfx::IndexBufferHandle> indexBuffers;
+	std::vector<bgfx::UniformHandle> textureUniforms;
+	std::vector<bgfx::TextureHandle> textureHandles;
+
 	std::vector<char> drawTileVertexShaderCode;
 	std::vector<char> drawTileFragmentShaderCode;
 

@@ -137,6 +137,21 @@ void BgfxRenderDevice::Unlock(bool Blit)
         {
                 // bgfx::touch(0);
                 bgfx::frame();
+    
+                for (auto vbh : vertexBuffers) {
+                        bgfx::destroy(vbh);
+                }
+                vertexBuffers.clear();
+
+                for (auto ibh : indexBuffers) {
+                        bgfx::destroy(ibh);                
+                }
+                indexBuffers.clear();
+
+                for (auto textureHandle : textureHandles) {
+                        bgfx::destroy(textureHandle);
+                }                
+                textureUniforms.clear(); 
 
                 auto now = std::chrono::system_clock::now();
                 auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
@@ -268,13 +283,16 @@ void BgfxRenderDevice::DrawTile(
         };
 
         // Create vertex and index buffers
-        bgfx::VertexBufferHandle vbh = bgfx::createVertexBuffer(
-            bgfx::makeRef(vertices, sizeof(vertices)),
-            Vertex3D_UV::ms_layout);
+        auto vbh = bgfx::createVertexBuffer(
+            bgfx::makeRef(vertices, sizeof(vertices)), Vertex3D_UV::ms_layout);
+
+        vertexBuffers.push_back(vbh);
 
         uint16_t indices[] = {0, 1, 2, 2, 3, 0};
-        bgfx::IndexBufferHandle ibh = bgfx::createIndexBuffer(
+        auto ibh = bgfx::createIndexBuffer(
             bgfx::makeRef(indices, sizeof(indices)));
+
+        indexBuffers.push_back(ibh);
 
         bgfx::setVertexBuffer(0, vbh);
         bgfx::setIndexBuffer(ibh);
@@ -305,7 +323,6 @@ void BgfxRenderDevice::DrawTile(
         int cursor = 0;
         for (auto i = 0; i < textureWidth * textureHeight * 4; i += 4)
         {
-
                 auto surfacePixels = (Uint8 *)surface->pixels;
 
                 auto pixels = mipmapData;
@@ -322,15 +339,15 @@ void BgfxRenderDevice::DrawTile(
         }
 
         bgfx::TextureHandle texture = convertSurfaceToTexture(surface);
-        bgfx::UniformHandle s_texture0;        
+
+        bgfx::UniformHandle s_texture0;
         bgfx::setTexture(0, s_texture0, texture);
         SDL_FreeSurface(surface);
 
-        bgfx::submit(0, drawTileProgram);
+        textureHandles.push_back(texture);
+        textureUniforms.push_back(s_texture0);
 
-        bgfx::destroy(texture);
-        bgfx::destroy(vbh);
-        bgfx::destroy(ibh);
+        bgfx::submit(0, drawTileProgram);
 }
 
 void BgfxRenderDevice::Draw3DLine(FSceneNode *Frame, vec4 Color, vec3 P1, vec3 P2)
