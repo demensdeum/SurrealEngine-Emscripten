@@ -47,7 +47,12 @@ private:
             static bgfx::VertexLayout ms_layout;
         };
 
+	std::vector<std::vector<Vertex3D_UV>> vertices;
+
 	bgfx::ProgramHandle drawTileProgram;
+
+	bgfx::TextureHandle texture;
+	bgfx::UniformHandle s_texture0;
 
 	std::vector<bgfx::VertexBufferHandle> vertexBuffers;
 	std::vector<bgfx::IndexBufferHandle> indexBuffers;
