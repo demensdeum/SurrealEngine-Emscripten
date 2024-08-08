@@ -323,124 +323,178 @@ void BgfxRenderDevice::DrawTile(
     vec4 Color,
     vec4 Fog, uint32_t PolyFlags)
 {
-        auto textureWidth = Info.Mips[0].Width;
-        auto textureHeight = Info.Mips[0].Height;
+        std::vector<Vertex3D_UV> vertices;
 
-        float u = float(U) / textureWidth;
-        float v = float(V) / textureHeight;
-        float ul = float(UL) / textureWidth;
-        float vl = float(VL) / textureHeight;
+    float ZZZ = 0.0;
+    vertices.push_back(Vertex3D_UV{-0.5f, -0.5f, ZZZ, 0.0f, 0.0f});
+    vertices.push_back(Vertex3D_UV{0.5f, -0.5f, ZZZ, 1.0f, 0.0f});
+    vertices.push_back(Vertex3D_UV{0.0f, 0.5f, ZZZ, 0.5f, 1.0f});
 
-        float ndcX = (X / 1920) * 2.0f - 1.0f;
-        float ndcY = (Y / 1080) * 2.0f - 1.0f;
-        float ndcXL = (XL / 1920) * 2.0f;
-        float ndcYL = (YL / 1080) * 2.0f;
+    bgfx::VertexBufferHandle vertexBuffer = bgfx::createVertexBuffer(
+        bgfx::makeRef(
+            vertices.data(),
+            sizeof(decltype(vertices)::value_type) * vertices.size()),
+        Vertex3D_UV::ms_layout);
 
-        // Vertex3D_UV vertices[] = {
-        //     {ndcX, ndcY + ndcYL, Z, u, v + vl},              // bottom-left
-        //     {ndcX + ndcXL, ndcY + ndcYL, Z, u + ul, v + vl}, // bottom-right
-        //     {ndcX + ndcXL, ndcY, Z, u + ul, v},              // top-right
-        //     {ndcX, ndcY, Z, u, v}                            // top-left
-        // };
+    bgfx::TextureHandle texture = loadTexture("brick.texture.bmp");
+    bgfx::UniformHandle s_texture0 = bgfx::createUniform("s_texture0", bgfx::UniformType::Sampler);
 
-        // Vertex3D_UV vertices[] = {
-        //     {0, 0, 0.1, u, v + vl},              // bottom-left
-        //     {1, 0, 0.1, u + ul, v + vl}, // bottom-right
-        //     {1, 1, 0.1, u + ul, v},              // top-right
-        //     {0, 1, 0.1, u, v}                            // top-left
-        // };
+bool isRun = true;
+    SDL_Event e;
 
-        // Vertex3D_UV vertices[] = {
-        //     {-1.0f, 1.0f, 0.0f, 0.0f, 0.0f},  // Top-left
-        //     {1.0f, 1.0f, 0.0f, 1.0f, 0.0f},   // Top-right
-        //     {-1.0f, -1.0f, 0.0f, 0.0f, 1.0f}, // Bottom-left
-        //     {1.0f, -1.0f, 0.0f, 1.0f, 1.0f}   // Bottom-right
-        // };
+    while (isRun)
+    {
+        SDL_PollEvent(&e);
+        if (e.type == SDL_QUIT)
+        {
+            isRun = false;
+        }
+        if (e.type == SDL_KEYDOWN)
+        {
+            if (e.key.keysym.sym == SDLK_ESCAPE)
+            {
+                isRun = false;
+            }
+        }
 
-        float ZZZ = -0.5f;
-
-        vertices.push_back(std::vector<Vertex3D_UV>());
-
-        std::vector<Vertex3D_UV> *cube = &vertices[vertices.size() - 1];
-
-        cube->push_back({-1.0f, 1.0f, ZZZ, 0.0f, 0.0f});
-        cube->push_back({1.0f, 1.0f, ZZZ, 1.0f, 0.0f});
-        cube->push_back({-1.0f, -1.0f, ZZZ, 0.0f, 1.0f});
-
-        cube->push_back({1.0f, 1.0f, ZZZ, 1.0f, 0.0f});
-        cube->push_back({1.0f, -1.0f, ZZZ, 1.0f, 1.0f});
-        cube->push_back({-1.0f, -1.0f, ZZZ, 0.0f, 1.0f});
-
-        // const uint16_t indices[] =
-        //     {
-        //         0, 1, 2,
-        //         1, 3, 2};
-
-        // uint16_t indices[] = {0, 1, 2, 2, 3, 0};
-
-        // Create vertex and index buffers
-        vertexBuffers.push_back(bgfx::createVertexBuffer(
-            bgfx::makeRef(cube->data(), sizeof(Vertex3D_UV) * cube->size()),
-            Vertex3D_UV::ms_layout));
-        
-
-        // bgfx::IndexBufferHandle ibh = bgfx::createIndexBuffer(
-        //     bgfx::makeRef(indices, sizeof(indices)));
-        // indexBuffers.push_back(ibh);
-
-        bgfx::setVertexBuffer(0, vertexBuffers[vertexBuffers.size()-1]);
-        //bgfx::setIndexBuffer(ibh);
+        bgfx::setVertexBuffer(0, vertexBuffer);
         bgfx::setTexture(0, s_texture0, texture);
 
+        bgfx::setState(BGFX_STATE_DEFAULT);
+
         bgfx::submit(0, drawTileProgram);
+        bgfx::frame();
+    }
 
-        // SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(
-        //     0,
-        //     textureWidth,
-        //     textureHeight,
-        //     32,
-        //     SDL_PIXELFORMAT_RGBA32);
 
-        // UTexture *Texture = Info.Texture;
 
-        // UnrealMipmap *mipmap = &Info.Mips[0];
-        // uint8_t *mipmapData = mipmap->Data.data();
 
-        // size_t miplevel = 0;
 
-        // if (!mipmap || !mipmapData)
-        // {
-        //         std::cout << "mipmap or mipmapData is nullptr" << std::endl;
-        //         return;
-        // }
 
-        // auto converted_data = P8_Convert(&Info, miplevel);
-        // mipmapData = (uint8_t *)converted_data.data();
 
-        // int cursor = 0;
-        // for (auto i = 0; i < textureWidth * textureHeight * 4; i += 4)
-        // {
-        //         auto surfacePixels = (Uint8 *)surface->pixels;
 
-        //         auto pixels = mipmapData;
 
-        //         auto redComponent = pixels[i];
-        //         auto greenComponent = pixels[i + 1];
-        //         auto blueComponent = pixels[i + 2];
-        //         auto alphaComponent = pixels[i + 3];
 
-        //         surfacePixels[cursor] = redComponent;
-        //         surfacePixels[cursor + 1] = greenComponent;
-        //         surfacePixels[cursor + 2] = blueComponent;
-        //         surfacePixels[cursor + 3] = alphaComponent;
-        // }
 
-        // bgfx::TextureHandle texture = convertSurfaceToTexture(surface);
 
-        // SDL_FreeSurface(surface);
 
-        // textureHandles.push_back(texture);
-        // textureUniforms.push_back(s_texture0);
+
+
+
+        // auto textureWidth = Info.Mips[0].Width;
+        // auto textureHeight = Info.Mips[0].Height;
+
+        // float u = float(U) / textureWidth;
+        // float v = float(V) / textureHeight;
+        // float ul = float(UL) / textureWidth;
+        // float vl = float(VL) / textureHeight;
+
+        // float ndcX = (X / 1920) * 2.0f - 1.0f;
+        // float ndcY = (Y / 1080) * 2.0f - 1.0f;
+        // float ndcXL = (XL / 1920) * 2.0f;
+        // float ndcYL = (YL / 1080) * 2.0f;
+
+        // // Vertex3D_UV vertices[] = {
+        // //     {ndcX, ndcY + ndcYL, Z, u, v + vl},              // bottom-left
+        // //     {ndcX + ndcXL, ndcY + ndcYL, Z, u + ul, v + vl}, // bottom-right
+        // //     {ndcX + ndcXL, ndcY, Z, u + ul, v},              // top-right
+        // //     {ndcX, ndcY, Z, u, v}                            // top-left
+        // // };
+
+        // // Vertex3D_UV vertices[] = {
+        // //     {0, 0, 0.1, u, v + vl},              // bottom-left
+        // //     {1, 0, 0.1, u + ul, v + vl}, // bottom-right
+        // //     {1, 1, 0.1, u + ul, v},              // top-right
+        // //     {0, 1, 0.1, u, v}                            // top-left
+        // // };
+
+        // // Vertex3D_UV vertices[] = {
+        // //     {-1.0f, 1.0f, 0.0f, 0.0f, 0.0f},  // Top-left
+        // //     {1.0f, 1.0f, 0.0f, 1.0f, 0.0f},   // Top-right
+        // //     {-1.0f, -1.0f, 0.0f, 0.0f, 1.0f}, // Bottom-left
+        // //     {1.0f, -1.0f, 0.0f, 1.0f, 1.0f}   // Bottom-right
+        // // };
+
+        // float ZZZ = 0.f;
+
+        // vertices.push_back(std::vector<Vertex3D_UV>());
+
+        // std::vector<Vertex3D_UV> *cube = &vertices[vertices.size() - 1];
+
+        // cube->push_back(Vertex3D_UV{-0.5f, -0.5f, ZZZ, 0.0f, 0.0f});
+        // cube->push_back(Vertex3D_UV{0.5f, -0.5f, ZZZ, 1.0f, 0.0f});
+        // cube->push_back(Vertex3D_UV{0.0f, 0.5f, ZZZ, 0.5f, 1.0f});
+
+        // // const uint16_t indices[] =
+        // //     {
+        // //         0, 1, 2,
+        // //         1, 3, 2};
+
+        // // uint16_t indices[] = {0, 1, 2, 2, 3, 0};
+
+        // // Create vertex and index buffers
+        // vertexBuffers.push_back(bgfx::createVertexBuffer(
+        //     bgfx::makeRef(cube->data(), sizeof(Vertex3D_UV) * cube->size()),
+        //     Vertex3D_UV::ms_layout));
+        
+
+        // // bgfx::IndexBufferHandle ibh = bgfx::createIndexBuffer(
+        // //     bgfx::makeRef(indices, sizeof(indices)));
+        // // indexBuffers.push_back(ibh);
+
+        // bgfx::setVertexBuffer(0, vertexBuffers[vertexBuffers.size()-1]);
+        // //bgfx::setIndexBuffer(ibh);
+        // bgfx::setTexture(0, s_texture0, texture);
+
+        // bgfx::submit(0, drawTileProgram);
+
+        // // SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(
+        // //     0,
+        // //     textureWidth,
+        // //     textureHeight,
+        // //     32,
+        // //     SDL_PIXELFORMAT_RGBA32);
+
+        // // UTexture *Texture = Info.Texture;
+
+        // // UnrealMipmap *mipmap = &Info.Mips[0];
+        // // uint8_t *mipmapData = mipmap->Data.data();
+
+        // // size_t miplevel = 0;
+
+        // // if (!mipmap || !mipmapData)
+        // // {
+        // //         std::cout << "mipmap or mipmapData is nullptr" << std::endl;
+        // //         return;
+        // // }
+
+        // // auto converted_data = P8_Convert(&Info, miplevel);
+        // // mipmapData = (uint8_t *)converted_data.data();
+
+        // // int cursor = 0;
+        // // for (auto i = 0; i < textureWidth * textureHeight * 4; i += 4)
+        // // {
+        // //         auto surfacePixels = (Uint8 *)surface->pixels;
+
+        // //         auto pixels = mipmapData;
+
+        // //         auto redComponent = pixels[i];
+        // //         auto greenComponent = pixels[i + 1];
+        // //         auto blueComponent = pixels[i + 2];
+        // //         auto alphaComponent = pixels[i + 3];
+
+        // //         surfacePixels[cursor] = redComponent;
+        // //         surfacePixels[cursor + 1] = greenComponent;
+        // //         surfacePixels[cursor + 2] = blueComponent;
+        // //         surfacePixels[cursor + 3] = alphaComponent;
+        // // }
+
+        // // bgfx::TextureHandle texture = convertSurfaceToTexture(surface);
+
+        // // SDL_FreeSurface(surface);
+
+        // // textureHandles.push_back(texture);
+        // // textureUniforms.push_back(s_texture0);
 }
 
 void BgfxRenderDevice::Draw3DLine(FSceneNode *Frame, vec4 Color, vec3 P1, vec3 P2)
