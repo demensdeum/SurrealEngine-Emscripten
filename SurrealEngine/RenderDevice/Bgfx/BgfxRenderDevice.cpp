@@ -335,6 +335,109 @@ void BgfxRenderDevice::DrawGouraudPolygon(FSceneNode *Frame, FTextureInfo &Info,
 //         return textureHandle;
 // }
 
+std::vector<FColor> P8_Convert(FTextureInfo *info, size_t mipmapLevel)
+{
+	std::vector<FColor> result;
+
+	UnrealMipmap *mipmap = &info->Texture->Mipmaps[mipmapLevel];
+	size_t mipmapWidth = mipmap->Width;
+	size_t mipmapHeight = mipmap->Height;
+
+	FColor *palette = info->Palette;
+
+	result.resize(mipmapWidth * mipmapHeight);
+
+	if (info->Texture->bMasked())
+	{
+		FColor transparent(0, 0, 0, 0);
+
+		for (size_t y = 0; y < mipmapHeight; y++)
+		{
+			for (size_t x = 0; x < mipmapWidth; x++)
+			{
+				uint8_t index = mipmap->Data[x + y * mipmapWidth];
+				result[x + y * mipmapWidth] = index == 0 ? transparent : palette[index];
+			}
+		}
+	}
+	else
+	{
+		for (size_t y = 0; y < mipmapHeight; y++)
+		{
+			for (size_t x = 0; x < mipmapWidth; x++)
+			{
+				uint8_t index = mipmap->Data[x + y * mipmapWidth];
+				result[x + y * mipmapWidth] = palette[index];
+			}
+		}
+	}
+
+	return result;
+}
+
+void generateMipMap(FTextureInfo *Texture, SDL_Surface *surface)
+{
+	auto textureWidth = Texture->Mips[0].Width;
+	auto textureHeight = Texture->Mips[0].Height;	
+	auto miplevel = 0;
+	{
+		UnrealMipmap* mipmap = &Texture->Mips[0];
+		uint8_t *mipmapData = mipmap->Data.data();
+
+		if (!mipmap || !mipmapData) {
+			std::cout << "mipmap or mipmapData is nullptr" << std::endl;
+			return;			
+		} 
+
+		// GLuint textureFormat = TextureFormatToGL(Texture->Format);
+
+		// if (textureFormat >= GL_COMPRESSED_RGBA_S3TC_DXT1_EXT && textureFormat <= GL_COMPRESSED_RGBA_S3TC_DXT5_EXT)
+		// {
+		// 	glCompressedTexImage2D(
+		// 		GL_TEXTURE_2D, 
+		// 		miplevel, 
+		// 		textureFormat, 
+		// 		mipmap->Width, 
+		// 		mipmap->Height, 
+		// 		0, 
+		// 		0, 
+		// 		mipmapData
+		// 	);
+		// }
+		// else
+		// {
+			if (Texture->Format == TextureFormat::P8)
+			{
+				// Convert P8 to RGBA32
+				auto converted_data = P8_Convert(Texture, miplevel);
+				mipmapData = (uint8_t *)converted_data.data();
+
+				int cursor = 0;
+				for (auto i = 0; i < textureWidth * textureHeight * 4; i += 4)
+				{
+
+					auto surfacePixels = (Uint8 *)surface->pixels;
+
+					auto pixels = mipmapData;
+
+					auto redComponent = pixels[i];
+					auto greenComponent = pixels[i + 1];
+					auto blueComponent = pixels[i + 2];
+					auto alphaComponent = pixels[i + 3];
+
+					surfacePixels[cursor] = redComponent;
+					surfacePixels[cursor + 1] = greenComponent;
+					surfacePixels[cursor + 2] = blueComponent;
+					surfacePixels[cursor + 3] = alphaComponent;
+
+
+					cursor += 4;
+				}
+			}
+		// }
+	}	
+}
+
 void BgfxRenderDevice::bindTexture(FTextureInfo *texture) {
 	bgfx::TextureHandle textureBinding;
 
@@ -342,7 +445,47 @@ void BgfxRenderDevice::bindTexture(FTextureInfo *texture) {
 	auto textureHeight = texture->Mips[0].Height;
 
 	if (texturesCache.find(texture->CacheID) == texturesCache.end()) {
-		texturesCache[texture->CacheID] = loadTexture("brick.texture.bmp", texture->CacheID);
+
+		SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(
+			0,
+			textureWidth,
+			textureHeight,
+			32,
+			SDL_PIXELFORMAT_RGBA32
+		);
+
+                generateMipMap(texture, surface);
+
+        const bgfx::Memory *mem = bgfx::alloc(surface->w * surface->h * 4);
+        uint8_t *dst = (uint8_t *)mem->data;
+        uint8_t *src = (uint8_t *)surface->pixels;
+
+        for (int y = 0; y < surface->h; ++y)
+        {
+                for (int x = 0; x < surface->w; ++x)
+                {
+                        uint8_t *pixel = &src[(y * surface->pitch) + (x * surface->format->BytesPerPixel)];
+                        dst[(y * surface->w + x) * 4 + 0] = pixel[2]; // R
+                        dst[(y * surface->w + x) * 4 + 1] = pixel[1]; // G
+                        dst[(y * surface->w + x) * 4 + 2] = pixel[0]; // B
+                        dst[(y * surface->w + x) * 4 + 3] = 255;      // A
+                }
+        }
+
+        bgfx::TextureHandle textureHandle = bgfx::createTexture2D(
+            uint16_t(surface->w),
+            uint16_t(surface->h),
+            false,
+            1,
+            bgfx::TextureFormat::RGBA8,
+            0,
+            mem);
+
+        SDL_FreeSurface(surface);
+
+                texturesCache[texture->CacheID] = textureHandle;
+
+		//texturesCache[texture->CacheID] = loadTexture("brick.texture.bmp", texture->CacheID);
                 textureBinding = texturesCache[texture->CacheID];
 	}
 	else {
