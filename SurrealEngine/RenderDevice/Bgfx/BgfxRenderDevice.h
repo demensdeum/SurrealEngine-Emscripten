@@ -47,28 +47,20 @@ private:
             static bgfx::VertexLayout ms_layout;
         };
 
-	std::vector<std::vector<Vertex3D_UV>> vertices;
+	void bindTexture(FTextureInfo *texture);
 
 	bgfx::ProgramHandle drawTileProgram;
 
-	bgfx::TextureHandle texture;
+	// std::vector<bgfx::TextureHandle> textures;
 	bgfx::UniformHandle s_texture0;
-
-	std::vector<bgfx::VertexBufferHandle> vertexBuffers;
-	std::vector<bgfx::IndexBufferHandle> indexBuffers;
-	std::vector<bgfx::UniformHandle> textureUniforms;
-	std::vector<bgfx::TextureHandle> textureHandles;
 
 	std::vector<char> drawTileVertexShaderCode;
 	std::vector<char> drawTileFragmentShaderCode;
 
-	std::vector<char> draw3DVertexShaderCode;
-	std::vector<char> draw3DFragmentShaderCode;
-
 	std::chrono::milliseconds renderingStartDate;
 
-
 	std::vector<Vertex3D_UV> vertices2D;
-	bgfx::VertexBufferHandle vertexBufferHandle2D;
+	std::vector<bgfx::TextureHandle> vertices2DTileTexture;
+	//bgfx::VertexBufferHandle vertexBufferHandle2D;
 
 };

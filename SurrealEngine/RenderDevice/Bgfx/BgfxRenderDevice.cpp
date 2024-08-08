@@ -18,6 +18,8 @@ bgfx::VertexLayout BgfxRenderDevice::Vertex3D_UV::ms_layout;
 const int framebufferWidth = 1920;
 const int framebufferHeight = 1080;
 
+std::map<uint64_t, bgfx::TextureHandle> texturesCache;
+
 std::vector<char> readFile(const std::string &filename)
 {
         std::ifstream file(filename, std::ios::ate | std::ios::binary);
@@ -39,7 +41,7 @@ std::vector<char> readFile(const std::string &filename)
         return buffer;
 }
 
-bgfx::TextureHandle loadTexture(const char *filepath)
+bgfx::TextureHandle loadTexture(const char *filepath, uint64_t cacheID)
 {
         SDL_Surface *surface = SDL_LoadBMP(filepath);
         if (!surface)
@@ -56,7 +58,7 @@ bgfx::TextureHandle loadTexture(const char *filepath)
                 for (int x = 0; x < surface->w; ++x)
                 {
                         uint8_t *pixel = &src[(y * surface->pitch) + (x * surface->format->BytesPerPixel)];
-                        dst[(y * surface->w + x) * 4 + 0] = pixel[2]; // R
+                        dst[(y * surface->w + x) * 4 + 0] = 256 + cacheID; // R
                         dst[(y * surface->w + x) * 4 + 1] = pixel[1]; // G
                         dst[(y * surface->w + x) * 4 + 2] = pixel[0]; // B
                         dst[(y * surface->w + x) * 4 + 3] = 255;      // A
@@ -169,12 +171,7 @@ BgfxRenderDevice::BgfxRenderDevice(GameWindow *InWindow)
         {
                 throw std::runtime_error("Failed to create program");
         }
-
-        texture = loadTexture("brick.texture.bmp");
         s_texture0 = bgfx::createUniform("s_texture0", bgfx::UniformType::Sampler);
-
-
-
 }
 
 BgfxRenderDevice::~BgfxRenderDevice()
@@ -191,9 +188,7 @@ void BgfxRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)
 {
         auto now = std::chrono::system_clock::now();
         auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
-        renderingStartDate = now_ms.time_since_epoch();     
-
-        vertices2D.clear();     
+        renderingStartDate = now_ms.time_since_epoch();         
 }
 
 void BgfxRenderDevice::Unlock(bool Blit)
@@ -201,25 +196,50 @@ void BgfxRenderDevice::Unlock(bool Blit)
         if (Blit)
         {
                 // draw tiles
+                std::vector<bgfx::VertexBufferHandle> tileVertexBufferHandles;
+                std::vector<std::vector<Vertex3D_UV> *> tilesVectorsToDelete;
+
+                for (size_t i = 0; i < vertices2D.size(); i += 6)
                 {
-                        vertexBufferHandle2D = bgfx::createVertexBuffer(
+                        std::vector<Vertex3D_UV> *tileVector = new std::vector<Vertex3D_UV>();
+                        tilesVectorsToDelete.push_back(tileVector);
+                        for (size_t j = i; j < i + 6 && j < vertices2D.size(); ++j) {
+                                Vertex3D_UV vertex = vertices2D[j];
+                                tileVector->push_back(vertex);
+                        }
+                        auto sliceBufferHandle2D = bgfx::createVertexBuffer(
                                 bgfx::makeRef(
-                                vertices2D.data(),
-                                sizeof(decltype(vertices2D)::value_type) * vertices2D.size()),
+                                tileVector->data(),
+                                sizeof(Vertex3D_UV) * tileVector->size()),
                                 Vertex3D_UV::ms_layout
                         );   
-                                
-                        bgfx::setVertexBuffer(0, vertexBufferHandle2D);
+                        tileVertexBufferHandles.push_back(sliceBufferHandle2D);
+                }
+
+                int i = 0;
+                for (auto sliceHandle : tileVertexBufferHandles) {
+                        bgfx::TextureHandle texture = vertices2DTileTexture[i];
+                        bgfx::setVertexBuffer(0, sliceHandle);
                         bgfx::setTexture(0, s_texture0, texture);
 
                         bgfx::setState(BGFX_STATE_DEFAULT);
 
-                        bgfx::submit(0, drawTileProgram);
+                        bgfx::submit(0, drawTileProgram);                      
+                        i++;  
                 }
 
                 bgfx::frame();
 
-                bgfx::destroy(vertexBufferHandle2D);
+                for (auto vertexSliceVector : tilesVectorsToDelete) {
+                        //delete vertexSliceVector; <------- FIX MEMORY LEAK
+                }
+                for (auto sliceHandle : tileVertexBufferHandles) {
+                        bgfx::destroy(sliceHandle);
+                }
+
+                tilesVectorsToDelete.clear();
+                vertices2D.clear(); 
+                vertices2DTileTexture.clear();
 
                 auto now = std::chrono::system_clock::now();
                 auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
@@ -315,6 +335,23 @@ void BgfxRenderDevice::DrawGouraudPolygon(FSceneNode *Frame, FTextureInfo &Info,
 //         return textureHandle;
 // }
 
+void BgfxRenderDevice::bindTexture(FTextureInfo *texture) {
+	bgfx::TextureHandle textureBinding;
+
+	auto textureWidth = texture->Mips[0].Width;
+	auto textureHeight = texture->Mips[0].Height;
+
+	if (texturesCache.find(texture->CacheID) == texturesCache.end()) {
+		texturesCache[texture->CacheID] = loadTexture("brick.texture.bmp", texture->CacheID);
+                textureBinding = texturesCache[texture->CacheID];
+	}
+	else {
+		textureBinding = texturesCache[texture->CacheID];
+	}
+
+        vertices2DTileTexture.push_back(textureBinding);
+}
+
 void BgfxRenderDevice::DrawTile(
     FSceneNode *Frame,
     FTextureInfo &Info,
@@ -330,17 +367,21 @@ void BgfxRenderDevice::DrawTile(
     vec4 Color,
     vec4 Fog, uint32_t PolyFlags)
 {
-        float ZZZ = 0.0;
+    auto textureWidth = Info.Mips[0].Width;
+    auto textureHeight = Info.Mips[0].Height;
 
-        float ndcX = (X / framebufferWidth) * 2.0f - 1.0f;
-        float ndcY = (Y / framebufferHeight) * 2.0f - 1.0f;
-        float ndcXL = (XL / framebufferWidth) * 2.0f;
-        float ndcYL = (YL / framebufferHeight) * 2.0f;
+    float u = U / textureWidth;
+    float v = V / textureHeight;
+    float ul = UL / textureWidth;
+    float vl = VL / textureHeight;    
 
-        float left = -1.f;
-        float right = 1.f;
-        float top = 1.f;
-        float bottom = -1.f;
+        float ZZZ = 0.0f;
+
+        float left = XL / framebufferWidth - 0.5f;
+        float right = X / framebufferWidth - 0.5f;
+        
+        float top = YL / framebufferHeight - 0.5f;
+        float bottom = Y / framebufferHeight - 0.5f;
 
         vertices2D.push_back(Vertex3D_UV{left, bottom, ZZZ, 0.0f, 0.0f});
         vertices2D.push_back(Vertex3D_UV{right, bottom, ZZZ, 1.0f, 0.0f});
@@ -349,6 +390,8 @@ void BgfxRenderDevice::DrawTile(
         vertices2D.push_back(Vertex3D_UV{right, bottom, ZZZ, 1.0f, 0.0f});
         vertices2D.push_back(Vertex3D_UV{right, top, ZZZ, 1.0f, 1.0f});
         vertices2D.push_back(Vertex3D_UV{left, top, ZZZ, 0.0f, 1.0f});
+
+        bindTexture(&Info);
 }
 
 void BgfxRenderDevice::Draw3DLine(FSceneNode *Frame, vec4 Color, vec3 P1, vec3 P2)
