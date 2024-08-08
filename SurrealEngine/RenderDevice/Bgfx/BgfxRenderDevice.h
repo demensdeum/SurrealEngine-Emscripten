@@ -68,7 +68,7 @@ private:
 	std::chrono::milliseconds renderingStartDate;
 
 
-	std::vector<Vertex3D_UV> test_vertices;
-	bgfx::VertexBufferHandle test_vertexBuffer;
+	std::vector<Vertex3D_UV> vertices2D;
+	bgfx::VertexBufferHandle vertexBufferHandle2D;
 
 };

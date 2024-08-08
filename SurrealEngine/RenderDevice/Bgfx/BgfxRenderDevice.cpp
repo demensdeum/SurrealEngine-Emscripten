@@ -15,6 +15,9 @@
 
 bgfx::VertexLayout BgfxRenderDevice::Vertex3D_UV::ms_layout;
 
+const int framebufferWidth = 1920;
+const int framebufferHeight = 1080;
+
 std::vector<char> readFile(const std::string &filename)
 {
         std::ifstream file(filename, std::ios::ate | std::ios::binary);
@@ -113,8 +116,8 @@ BgfxRenderDevice::BgfxRenderDevice(GameWindow *InWindow)
 #elif BGFX_MODE == BGFX_MODE_VULKAN
         init.type = bgfx::RendererType::Vulkan;
 #endif
-        init.resolution.width = 1920;
-        init.resolution.height = 1080;
+        init.resolution.width = framebufferWidth;
+        init.resolution.height = framebufferHeight;
         init.resolution.reset = BGFX_RESET_VSYNC;
         init.platformData = platformData;
 
@@ -126,7 +129,7 @@ BgfxRenderDevice::BgfxRenderDevice(GameWindow *InWindow)
         Vertex3D_UV::init();
 
         bgfx::setViewClear(0, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0x443355FF, 1.0f, 0);
-        bgfx::setViewRect(0, 0, 0, 1920, 1080);
+        bgfx::setViewRect(0, 0, 0, framebufferWidth, framebufferHeight);
 
 #if BGFX_MODE == BGFX_MODE_OPENGL
         drawTileVertexShaderCode = readFile("BgfxRenderDeviceDrawTileVertex.glsl");
@@ -170,22 +173,8 @@ BgfxRenderDevice::BgfxRenderDevice(GameWindow *InWindow)
         texture = loadTexture("brick.texture.bmp");
         s_texture0 = bgfx::createUniform("s_texture0", bgfx::UniformType::Sampler);
 
-        float ZZZ = 0.0;
 
-        test_vertices.push_back(Vertex3D_UV{-0.5f, -0.5f, ZZZ, 0.0f, 0.0f}); // Bottom-left
-        test_vertices.push_back(Vertex3D_UV{0.5f, -0.5f, ZZZ, 1.0f, 0.0f});  // Bottom-right
-        test_vertices.push_back(Vertex3D_UV{-0.5f, 0.5f, ZZZ, 0.0f, 1.0f});  // Top-left
 
-        test_vertices.push_back(Vertex3D_UV{0.5f, -0.5f, ZZZ, 1.0f, 0.0f});  // Bottom-right
-        test_vertices.push_back(Vertex3D_UV{0.5f, 0.5f, ZZZ, 1.0f, 1.0f});   // Top-right
-        test_vertices.push_back(Vertex3D_UV{-0.5f, 0.5f, ZZZ, 0.0f, 1.0f});  // Top-left
-
-        test_vertexBuffer = bgfx::createVertexBuffer(
-                bgfx::makeRef(
-                test_vertices.data(),
-                sizeof(decltype(test_vertices)::value_type) * test_vertices.size()),
-                Vertex3D_UV::ms_layout
-        );
 }
 
 BgfxRenderDevice::~BgfxRenderDevice()
@@ -202,34 +191,35 @@ void BgfxRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)
 {
         auto now = std::chrono::system_clock::now();
         auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
-        renderingStartDate = now_ms.time_since_epoch();      
+        renderingStartDate = now_ms.time_since_epoch();     
+
+        vertices2D.clear();     
 }
 
 void BgfxRenderDevice::Unlock(bool Blit)
 {
         if (Blit)
         {
+                // draw tiles
+                {
+                        vertexBufferHandle2D = bgfx::createVertexBuffer(
+                                bgfx::makeRef(
+                                vertices2D.data(),
+                                sizeof(decltype(vertices2D)::value_type) * vertices2D.size()),
+                                Vertex3D_UV::ms_layout
+                        );   
+                                
+                        bgfx::setVertexBuffer(0, vertexBufferHandle2D);
+                        bgfx::setTexture(0, s_texture0, texture);
+
+                        bgfx::setState(BGFX_STATE_DEFAULT);
+
+                        bgfx::submit(0, drawTileProgram);
+                }
+
                 bgfx::frame();
 
-                for (auto vbh : vertexBuffers)
-                {
-                        bgfx::destroy(vbh);
-                }
-                vertexBuffers.clear();
-
-                vertices.clear();
-
-                for (auto ibh : indexBuffers)
-                {
-                        bgfx::destroy(ibh);
-                }
-                indexBuffers.clear();
-
-                // for (auto textureHandle : textureHandles)
-                // {
-                //         bgfx::destroy(textureHandle);
-                // }
-                // textureUniforms.clear();
+                bgfx::destroy(vertexBufferHandle2D);
 
                 auto now = std::chrono::system_clock::now();
                 auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
@@ -340,12 +330,25 @@ void BgfxRenderDevice::DrawTile(
     vec4 Color,
     vec4 Fog, uint32_t PolyFlags)
 {
-        bgfx::setVertexBuffer(0, test_vertexBuffer);
-        bgfx::setTexture(0, s_texture0, texture);
+        float ZZZ = 0.0;
 
-        bgfx::setState(BGFX_STATE_DEFAULT);
+        float ndcX = (X / framebufferWidth) * 2.0f - 1.0f;
+        float ndcY = (Y / framebufferHeight) * 2.0f - 1.0f;
+        float ndcXL = (XL / framebufferWidth) * 2.0f;
+        float ndcYL = (YL / framebufferHeight) * 2.0f;
 
-        bgfx::submit(0, drawTileProgram);
+        float left = -1.f;
+        float right = 1.f;
+        float top = 1.f;
+        float bottom = -1.f;
+
+        vertices2D.push_back(Vertex3D_UV{left, bottom, ZZZ, 0.0f, 0.0f});
+        vertices2D.push_back(Vertex3D_UV{right, bottom, ZZZ, 1.0f, 0.0f});
+        vertices2D.push_back(Vertex3D_UV{left, top, ZZZ, 0.0f, 1.0f});
+
+        vertices2D.push_back(Vertex3D_UV{right, bottom, ZZZ, 1.0f, 0.0f});
+        vertices2D.push_back(Vertex3D_UV{right, top, ZZZ, 1.0f, 1.0f});
+        vertices2D.push_back(Vertex3D_UV{left, top, ZZZ, 0.0f, 1.0f});
 }
 
 void BgfxRenderDevice::Draw3DLine(FSceneNode *Frame, vec4 Color, vec3 P1, vec3 P2)
