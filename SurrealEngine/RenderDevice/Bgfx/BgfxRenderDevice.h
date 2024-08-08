@@ -66,4 +66,9 @@ private:
 	std::vector<char> draw3DFragmentShaderCode;
 
 	std::chrono::milliseconds renderingStartDate;
+
+
+	std::vector<Vertex3D_UV> test_vertices;
+	bgfx::VertexBufferHandle test_vertexBuffer;
+
 };
