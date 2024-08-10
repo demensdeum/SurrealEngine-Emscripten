@@ -30,7 +30,7 @@ std::vector<char> readFile(const std::string &filename)
                 throw std::runtime_error(error);
         }
 
-        size_t fileSize = (size_t)file.tellg();
+        std::size_t fileSize = (std::size_t)file.tellg();
         std::vector<char> buffer(fileSize);
 
         file.seekg(0);
@@ -59,9 +59,9 @@ bgfx::TextureHandle loadTexture(const char *filepath, uint64_t cacheID)
                 {
                         uint8_t *pixel = &src[(y * surface->pitch) + (x * surface->format->BytesPerPixel)];
                         dst[(y * surface->w + x) * 4 + 0] = 256 + cacheID; // R
-                        dst[(y * surface->w + x) * 4 + 1] = pixel[1]; // G
-                        dst[(y * surface->w + x) * 4 + 2] = pixel[0]; // B
-                        dst[(y * surface->w + x) * 4 + 3] = 255;      // A
+                        dst[(y * surface->w + x) * 4 + 1] = pixel[1];      // G
+                        dst[(y * surface->w + x) * 4 + 2] = pixel[0];      // B
+                        dst[(y * surface->w + x) * 4 + 3] = 255;           // A
                 }
         }
 
@@ -188,7 +188,7 @@ void BgfxRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)
 {
         auto now = std::chrono::system_clock::now();
         auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
-        renderingStartDate = now_ms.time_since_epoch();         
+        renderingStartDate = now_ms.time_since_epoch();
 }
 
 void BgfxRenderDevice::Unlock(bool Blit)
@@ -197,48 +197,47 @@ void BgfxRenderDevice::Unlock(bool Blit)
         {
                 // draw tiles
                 std::vector<bgfx::VertexBufferHandle> tileVertexBufferHandles;
-                std::vector<std::vector<Vertex3D_UV> *> tilesVectorsToDelete;
+                //std::vector<std::vector<Vertex3D_UV> *> tilesVectorsToDelete;
 
-                for (size_t i = 0; i < vertices2D.size(); i += 6)
+                for (std::size_t i = 0; i < vertices2D.size(); i += 6)
                 {
                         std::vector<Vertex3D_UV> *tileVector = new std::vector<Vertex3D_UV>();
-                        tilesVectorsToDelete.push_back(tileVector);
-                        for (size_t j = i; j < i + 6 && j < vertices2D.size(); ++j) {
+                        //tilesVectorsToDelete.push_back(tileVector);
+                        for (std::size_t j = i; j < i + 6 && j < vertices2D.size(); ++j)
+                        {
                                 Vertex3D_UV vertex = vertices2D[j];
                                 tileVector->push_back(vertex);
                         }
+
+                        const bgfx::Memory *memory = bgfx::copy(tileVector->data(), sizeof(Vertex3D_UV) * tileVector->size());
+                        delete tileVector;
+
                         auto sliceBufferHandle2D = bgfx::createVertexBuffer(
-                                bgfx::makeRef(
-                                tileVector->data(),
-                                sizeof(Vertex3D_UV) * tileVector->size()),
-                                Vertex3D_UV::ms_layout
-                        );   
+                            memory,
+                            Vertex3D_UV::ms_layout);
                         tileVertexBufferHandles.push_back(sliceBufferHandle2D);
                 }
 
                 int i = 0;
-                for (auto sliceHandle : tileVertexBufferHandles) {
+                for (auto sliceHandle : tileVertexBufferHandles)
+                {
                         bgfx::TextureHandle texture = vertices2DTileTexture[i];
                         bgfx::setVertexBuffer(0, sliceHandle);
                         bgfx::setTexture(0, s_texture0, texture);
 
                         bgfx::setState(BGFX_STATE_DEFAULT);
 
-                        bgfx::submit(0, drawTileProgram);                      
-                        i++;  
+                        bgfx::submit(0, drawTileProgram);
+                        i++;
                 }
 
                 bgfx::frame();
 
-                for (auto vertexSliceVector : tilesVectorsToDelete) {
-                        //delete vertexSliceVector; <------- FIX MEMORY LEAK
-                }
-                for (auto sliceHandle : tileVertexBufferHandles) {
+                for (auto sliceHandle : tileVertexBufferHandles)
+                {
                         bgfx::destroy(sliceHandle);
                 }
-
-                tilesVectorsToDelete.clear();
-                vertices2D.clear(); 
+                vertices2D.clear();
                 vertices2DTileTexture.clear();
 
                 auto now = std::chrono::system_clock::now();
@@ -261,236 +260,144 @@ void BgfxRenderDevice::DrawGouraudPolygon(FSceneNode *Frame, FTextureInfo &Info,
 {
 }
 
-// std::vector<FColor> P8_Convert(FTextureInfo *info, size_t mipmapLevel)
-// {
-//         std::vector<FColor> result;
-
-//         UnrealMipmap *mipmap = &info->Texture->Mipmaps[mipmapLevel];
-//         size_t mipmapWidth = mipmap->Width;
-//         size_t mipmapHeight = mipmap->Height;
-
-//         FColor *palette = info->Palette;
-
-//         result.resize(mipmapWidth * mipmapHeight);
-
-//         if (info->Texture->bMasked())
-//         {
-//                 FColor transparent(0, 0, 0, 0);
-
-//                 for (size_t y = 0; y < mipmapHeight; y++)
-//                 {
-//                         for (size_t x = 0; x < mipmapWidth; x++)
-//                         {
-//                                 uint8_t index = mipmap->Data[x + y * mipmapWidth];
-//                                 result[x + y * mipmapWidth] = index == 0 ? transparent : palette[index];
-//                         }
-//                 }
-//         }
-//         else
-//         {
-//                 for (size_t y = 0; y < mipmapHeight; y++)
-//                 {
-//                         for (size_t x = 0; x < mipmapWidth; x++)
-//                         {
-//                                 uint8_t index = mipmap->Data[x + y * mipmapWidth];
-//                                 result[x + y * mipmapWidth] = palette[index];
-//                         }
-//                 }
-//         }
-
-//         return result;
-// }
-
-// bgfx::TextureHandle convertSurfaceToTexture(SDL_Surface *surface)
-// {
-//         if (!surface)
-//         {
-//                 throw std::runtime_error("convertSurfaceToTexture error: surface is null");
-//         }
-
-//         const bgfx::Memory *mem = bgfx::alloc(surface->w * surface->h * 4);
-//         uint8_t *dst = (uint8_t *)mem->data;
-//         uint8_t *src = (uint8_t *)surface->pixels;
-
-//         for (int y = 0; y < surface->h; ++y)
-//         {
-//                 for (int x = 0; x < surface->w; ++x)
-//                 {
-//                         uint8_t *pixel = &src[(y * surface->pitch) + (x * surface->format->BytesPerPixel)];
-//                         dst[(y * surface->w + x) * 4 + 0] = pixel[2]; // R
-//                         dst[(y * surface->w + x) * 4 + 1] = pixel[1]; // G
-//                         dst[(y * surface->w + x) * 4 + 2] = pixel[0]; // B
-//                         dst[(y * surface->w + x) * 4 + 3] = 255;      // A
-//                 }
-//         }
-
-//         bgfx::TextureHandle textureHandle = bgfx::createTexture2D(
-//             uint16_t(surface->w),
-//             uint16_t(surface->h),
-//             false,
-//             1,
-//             bgfx::TextureFormat::RGBA8,
-//             0,
-//             mem);
-//         return textureHandle;
-// }
-
-std::vector<FColor> P8_Convert(FTextureInfo *info, size_t mipmapLevel)
+std::vector<FColor> P8_Convert(FTextureInfo *info, std::size_t mipmapLevel)
 {
-	std::vector<FColor> result;
+        std::vector<FColor> result;
 
-	UnrealMipmap *mipmap = &info->Texture->Mipmaps[mipmapLevel];
-	size_t mipmapWidth = mipmap->Width;
-	size_t mipmapHeight = mipmap->Height;
+        UnrealMipmap *mipmap = &info->Texture->Mipmaps[mipmapLevel];
+        std::size_t mipmapWidth = mipmap->Width;
+        std::size_t mipmapHeight = mipmap->Height;
 
-	FColor *palette = info->Palette;
+        FColor *palette = info->Palette;
 
-	result.resize(mipmapWidth * mipmapHeight);
+        result.resize(mipmapWidth * mipmapHeight);
 
-	if (info->Texture->bMasked())
-	{
-		FColor transparent(0, 0, 0, 0);
+        if (info->Texture->bMasked())
+        {
+                FColor transparent(0, 0, 0, 0);
 
-		for (size_t y = 0; y < mipmapHeight; y++)
-		{
-			for (size_t x = 0; x < mipmapWidth; x++)
-			{
-				uint8_t index = mipmap->Data[x + y * mipmapWidth];
-				result[x + y * mipmapWidth] = index == 0 ? transparent : palette[index];
-			}
-		}
-	}
-	else
-	{
-		for (size_t y = 0; y < mipmapHeight; y++)
-		{
-			for (size_t x = 0; x < mipmapWidth; x++)
-			{
-				uint8_t index = mipmap->Data[x + y * mipmapWidth];
-				result[x + y * mipmapWidth] = palette[index];
-			}
-		}
-	}
+                for (std::size_t y = 0; y < mipmapHeight; y++)
+                {
+                        for (std::size_t x = 0; x < mipmapWidth; x++)
+                        {
+                                uint8_t index = mipmap->Data[x + y * mipmapWidth];
+                                result[x + y * mipmapWidth] = index == 0 ? transparent : palette[index];
+                        }
+                }
+        }
+        else
+        {
+                for (std::size_t y = 0; y < mipmapHeight; y++)
+                {
+                        for (std::size_t x = 0; x < mipmapWidth; x++)
+                        {
+                                uint8_t index = mipmap->Data[x + y * mipmapWidth];
+                                result[x + y * mipmapWidth] = palette[index];
+                        }
+                }
+        }
 
-	return result;
+        return result;
 }
 
 void generateMipMap(FTextureInfo *Texture, SDL_Surface *surface)
 {
-	auto textureWidth = Texture->Mips[0].Width;
-	auto textureHeight = Texture->Mips[0].Height;	
-	auto miplevel = 0;
-	{
-		UnrealMipmap* mipmap = &Texture->Mips[0];
-		uint8_t *mipmapData = mipmap->Data.data();
+        auto textureWidth = Texture->Mips[0].Width;
+        auto textureHeight = Texture->Mips[0].Height;
+        auto miplevel = 0;
+        {
+                UnrealMipmap *mipmap = &Texture->Mips[0];
+                uint8_t *mipmapData = mipmap->Data.data();
 
-		if (!mipmap || !mipmapData) {
-			std::cout << "mipmap or mipmapData is nullptr" << std::endl;
-			return;			
-		} 
+                if (!mipmap || !mipmapData)
+                {
+                        std::cout << "mipmap or mipmapData is nullptr" << std::endl;
+                        return;
+                }
 
-		// GLuint textureFormat = TextureFormatToGL(Texture->Format);
+                if (Texture->Format == TextureFormat::P8)
+                {
+                        // Convert P8 to RGBA32
+                        auto converted_data = P8_Convert(Texture, miplevel);
+                        mipmapData = (uint8_t *)converted_data.data();
 
-		// if (textureFormat >= GL_COMPRESSED_RGBA_S3TC_DXT1_EXT && textureFormat <= GL_COMPRESSED_RGBA_S3TC_DXT5_EXT)
-		// {
-		// 	glCompressedTexImage2D(
-		// 		GL_TEXTURE_2D, 
-		// 		miplevel, 
-		// 		textureFormat, 
-		// 		mipmap->Width, 
-		// 		mipmap->Height, 
-		// 		0, 
-		// 		0, 
-		// 		mipmapData
-		// 	);
-		// }
-		// else
-		// {
-			if (Texture->Format == TextureFormat::P8)
-			{
-				// Convert P8 to RGBA32
-				auto converted_data = P8_Convert(Texture, miplevel);
-				mipmapData = (uint8_t *)converted_data.data();
+                        int cursor = 0;
+                        for (auto i = 0; i < textureWidth * textureHeight * 4; i += 4)
+                        {
 
-				int cursor = 0;
-				for (auto i = 0; i < textureWidth * textureHeight * 4; i += 4)
-				{
+                                auto surfacePixels = (Uint8 *)surface->pixels;
 
-					auto surfacePixels = (Uint8 *)surface->pixels;
+                                auto pixels = mipmapData;
 
-					auto pixels = mipmapData;
+                                auto redComponent = pixels[i];
+                                auto greenComponent = pixels[i + 1];
+                                auto blueComponent = pixels[i + 2];
+                                auto alphaComponent = pixels[i + 3];
 
-					auto redComponent = pixels[i];
-					auto greenComponent = pixels[i + 1];
-					auto blueComponent = pixels[i + 2];
-					auto alphaComponent = pixels[i + 3];
+                                surfacePixels[cursor] = redComponent;
+                                surfacePixels[cursor + 1] = greenComponent;
+                                surfacePixels[cursor + 2] = blueComponent;
+                                surfacePixels[cursor + 3] = alphaComponent;
 
-					surfacePixels[cursor] = redComponent;
-					surfacePixels[cursor + 1] = greenComponent;
-					surfacePixels[cursor + 2] = blueComponent;
-					surfacePixels[cursor + 3] = alphaComponent;
-
-
-					cursor += 4;
-				}
-			}
-		// }
-	}	
+                                cursor += 4;
+                        }
+                }
+        }
 }
 
-void BgfxRenderDevice::bindTexture(FTextureInfo *texture) {
-	bgfx::TextureHandle textureBinding;
+void BgfxRenderDevice::bindTexture(FTextureInfo *texture)
+{
+        bgfx::TextureHandle textureBinding;
 
-	auto textureWidth = texture->Mips[0].Width;
-	auto textureHeight = texture->Mips[0].Height;
+        auto textureWidth = texture->Mips[0].Width;
+        auto textureHeight = texture->Mips[0].Height;
 
-	if (texturesCache.find(texture->CacheID) == texturesCache.end()) {
+        if (texturesCache.find(texture->CacheID) == texturesCache.end())
+        {
 
-		SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(
-			0,
-			textureWidth,
-			textureHeight,
-			32,
-			SDL_PIXELFORMAT_RGBA32
-		);
+                SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(
+                    0,
+                    textureWidth,
+                    textureHeight,
+                    32,
+                    SDL_PIXELFORMAT_RGBA32);
 
                 generateMipMap(texture, surface);
 
-        const bgfx::Memory *mem = bgfx::alloc(surface->w * surface->h * 4);
-        uint8_t *dst = (uint8_t *)mem->data;
-        uint8_t *src = (uint8_t *)surface->pixels;
+                const bgfx::Memory *mem = bgfx::alloc(surface->w * surface->h * 4);
+                uint8_t *dst = (uint8_t *)mem->data;
+                uint8_t *src = (uint8_t *)surface->pixels;
 
-        for (int y = 0; y < surface->h; ++y)
-        {
-                for (int x = 0; x < surface->w; ++x)
+                for (int y = 0; y < surface->h; ++y)
                 {
-                        uint8_t *pixel = &src[(y * surface->pitch) + (x * surface->format->BytesPerPixel)];
-                        dst[(y * surface->w + x) * 4 + 0] = pixel[2]; // R
-                        dst[(y * surface->w + x) * 4 + 1] = pixel[1]; // G
-                        dst[(y * surface->w + x) * 4 + 2] = pixel[0]; // B
-                        dst[(y * surface->w + x) * 4 + 3] = 255;      // A
+                        for (int x = 0; x < surface->w; ++x)
+                        {
+                                uint8_t *pixel = &src[(y * surface->pitch) + (x * surface->format->BytesPerPixel)];
+                                dst[(y * surface->w + x) * 4 + 0] = pixel[2]; // R
+                                dst[(y * surface->w + x) * 4 + 1] = pixel[1]; // G
+                                dst[(y * surface->w + x) * 4 + 2] = pixel[0]; // B
+                                dst[(y * surface->w + x) * 4 + 3] = 255;      // A
+                        }
                 }
-        }
 
-        bgfx::TextureHandle textureHandle = bgfx::createTexture2D(
-            uint16_t(surface->w),
-            uint16_t(surface->h),
-            false,
-            1,
-            bgfx::TextureFormat::RGBA8,
-            0,
-            mem);
+                bgfx::TextureHandle textureHandle = bgfx::createTexture2D(
+                    uint16_t(surface->w),
+                    uint16_t(surface->h),
+                    false,
+                    1,
+                    bgfx::TextureFormat::RGBA8,
+                    0,
+                    mem);
 
-        SDL_FreeSurface(surface);
+                SDL_FreeSurface(surface);
 
                 texturesCache[texture->CacheID] = textureHandle;
-
-		//texturesCache[texture->CacheID] = loadTexture("brick.texture.bmp", texture->CacheID);
                 textureBinding = texturesCache[texture->CacheID];
-	}
-	else {
-		textureBinding = texturesCache[texture->CacheID];
-	}
+        }
+        else
+        {
+                textureBinding = texturesCache[texture->CacheID];
+        }
 
         vertices2DTileTexture.push_back(textureBinding);
 }
@@ -510,19 +417,19 @@ void BgfxRenderDevice::DrawTile(
     vec4 Color,
     vec4 Fog, uint32_t PolyFlags)
 {
-    auto textureWidth = Info.Mips[0].Width;
-    auto textureHeight = Info.Mips[0].Height;
+        auto textureWidth = Info.Mips[0].Width;
+        auto textureHeight = Info.Mips[0].Height;
 
-    float u = U / textureWidth;
-    float v = V / textureHeight;
-    float ul = UL / textureWidth;
-    float vl = VL / textureHeight;    
+        float u = U / textureWidth;
+        float v = V / textureHeight;
+        float ul = UL / textureWidth;
+        float vl = VL / textureHeight;
 
         float ZZZ = 0.0f;
 
         float left = XL / framebufferWidth - 0.5f;
         float right = X / framebufferWidth - 0.5f;
-        
+
         float top = YL / framebufferHeight - 0.5f;
         float bottom = Y / framebufferHeight - 0.5f;
 
