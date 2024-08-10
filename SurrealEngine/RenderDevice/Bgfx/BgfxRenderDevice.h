@@ -50,8 +50,6 @@ private:
 	void bindTexture(FTextureInfo *texture);
 
 	bgfx::ProgramHandle drawTileProgram;
-
-	// std::vector<bgfx::TextureHandle> textures;
 	bgfx::UniformHandle s_texture0;
 
 	std::vector<char> drawTileVertexShaderCode;
@@ -59,8 +57,6 @@ private:
 
 	std::chrono::milliseconds renderingStartDate;
 
-	std::vector<Vertex3D_UV> vertices2D;
-	std::vector<bgfx::TextureHandle> vertices2DTileTexture;
-	//bgfx::VertexBufferHandle vertexBufferHandle2D;
-
+	std::vector<Vertex3D_UV> tilesVertices;
+	std::vector<bgfx::TextureHandle> tilesTextures;
 };

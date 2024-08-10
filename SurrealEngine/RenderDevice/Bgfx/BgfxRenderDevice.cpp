@@ -17,6 +17,9 @@ bgfx::VertexLayout BgfxRenderDevice::Vertex3D_UV::ms_layout;
 
 const int framebufferWidth = 1920;
 const int framebufferHeight = 1080;
+const int tileLength = 6;
+
+int tileCount = 0;
 
 std::map<uint64_t, bgfx::TextureHandle> texturesCache;
 
@@ -195,50 +198,40 @@ void BgfxRenderDevice::Unlock(bool Blit)
 {
         if (Blit)
         {
-                // draw tiles
                 std::vector<bgfx::VertexBufferHandle> tileVertexBufferHandles;
-                //std::vector<std::vector<Vertex3D_UV> *> tilesVectorsToDelete;
-
-                for (std::size_t i = 0; i < vertices2D.size(); i += 6)
+                for (std::size_t i = 0; i < tilesVertices.size(); i += tileLength)
                 {
-                        std::vector<Vertex3D_UV> *tileVector = new std::vector<Vertex3D_UV>();
-                        //tilesVectorsToDelete.push_back(tileVector);
-                        for (std::size_t j = i; j < i + 6 && j < vertices2D.size(); ++j)
-                        {
-                                Vertex3D_UV vertex = vertices2D[j];
-                                tileVector->push_back(vertex);
-                        }
+                        const bgfx::Memory *memory = bgfx::copy(
+                            tilesVertices.data() + i,
+                            sizeof(Vertex3D_UV) * tileLength);
 
-                        const bgfx::Memory *memory = bgfx::copy(tileVector->data(), sizeof(Vertex3D_UV) * tileVector->size());
-                        delete tileVector;
-
-                        auto sliceBufferHandle2D = bgfx::createVertexBuffer(
+                        bgfx::VertexBufferHandle tileVertexBufferHandle2D = bgfx::createVertexBuffer(
                             memory,
                             Vertex3D_UV::ms_layout);
-                        tileVertexBufferHandles.push_back(sliceBufferHandle2D);
+                        tileVertexBufferHandles.push_back(tileVertexBufferHandle2D);
                 }
 
-                int i = 0;
-                for (auto sliceHandle : tileVertexBufferHandles)
+                for (int i = 0; i < tileVertexBufferHandles.size(); i++)
                 {
-                        bgfx::TextureHandle texture = vertices2DTileTexture[i];
-                        bgfx::setVertexBuffer(0, sliceHandle);
+                        bgfx::VertexBufferHandle tileVertexBufferHandle = tileVertexBufferHandles[i];
+                        bgfx::TextureHandle texture = tilesTextures[i];
+                        bgfx::setVertexBuffer(0, tileVertexBufferHandle);
                         bgfx::setTexture(0, s_texture0, texture);
 
                         bgfx::setState(BGFX_STATE_DEFAULT);
 
                         bgfx::submit(0, drawTileProgram);
-                        i++;
                 }
 
                 bgfx::frame();
 
-                for (auto sliceHandle : tileVertexBufferHandles)
+                for (auto tileVertexBufferHandle : tileVertexBufferHandles)
                 {
-                        bgfx::destroy(sliceHandle);
+                        bgfx::destroy(tileVertexBufferHandle);
                 }
-                vertices2D.clear();
-                vertices2DTileTexture.clear();
+                tilesVertices.clear();
+                tilesTextures.clear();
+                tileCount = 0;
 
                 auto now = std::chrono::system_clock::now();
                 auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
@@ -373,9 +366,9 @@ void BgfxRenderDevice::bindTexture(FTextureInfo *texture)
                         for (int x = 0; x < surface->w; ++x)
                         {
                                 uint8_t *pixel = &src[(y * surface->pitch) + (x * surface->format->BytesPerPixel)];
-                                dst[(y * surface->w + x) * 4 + 0] = pixel[2]; // R
+                                dst[(y * surface->w + x) * 4 + 0] = pixel[0]; // R
                                 dst[(y * surface->w + x) * 4 + 1] = pixel[1]; // G
-                                dst[(y * surface->w + x) * 4 + 2] = pixel[0]; // B
+                                dst[(y * surface->w + x) * 4 + 2] = pixel[2]; // B
                                 dst[(y * surface->w + x) * 4 + 3] = 255;      // A
                         }
                 }
@@ -399,7 +392,7 @@ void BgfxRenderDevice::bindTexture(FTextureInfo *texture)
                 textureBinding = texturesCache[texture->CacheID];
         }
 
-        vertices2DTileTexture.push_back(textureBinding);
+        tilesTextures.push_back(textureBinding);
 }
 
 void BgfxRenderDevice::DrawTile(
@@ -417,8 +410,8 @@ void BgfxRenderDevice::DrawTile(
     vec4 Color,
     vec4 Fog, uint32_t PolyFlags)
 {
-        auto textureWidth = Info.Mips[0].Width;
-        auto textureHeight = Info.Mips[0].Height;
+        int textureWidth = Info.Mips[0].Width;
+        int textureHeight = Info.Mips[0].Height;
 
         float u = U / textureWidth;
         float v = V / textureHeight;
@@ -427,19 +420,21 @@ void BgfxRenderDevice::DrawTile(
 
         float ZZZ = 0.0f;
 
-        float left = XL / framebufferWidth - 0.5f;
-        float right = X / framebufferWidth - 0.5f;
+        float left = (XL / float(framebufferWidth)) * 2.f - 1.f;
+        float right = (X / float(framebufferWidth)) * 2.f - 1.f;
 
-        float top = YL / framebufferHeight - 0.5f;
-        float bottom = Y / framebufferHeight - 0.5f;
+        float top = (YL / float(framebufferHeight)) * 2.f - 1.f;
+        float bottom = (Y / float(framebufferHeight)) * 2.f - 1.f;
 
-        vertices2D.push_back(Vertex3D_UV{left, bottom, ZZZ, 0.0f, 0.0f});
-        vertices2D.push_back(Vertex3D_UV{right, bottom, ZZZ, 1.0f, 0.0f});
-        vertices2D.push_back(Vertex3D_UV{left, top, ZZZ, 0.0f, 1.0f});
+        // top
+        tilesVertices.push_back(Vertex3D_UV{right, bottom, ZZZ, u, v});
+        tilesVertices.push_back(Vertex3D_UV{right, top, ZZZ, u, vl});
+        tilesVertices.push_back(Vertex3D_UV{left, top, ZZZ, ul, vl});
 
-        vertices2D.push_back(Vertex3D_UV{right, bottom, ZZZ, 1.0f, 0.0f});
-        vertices2D.push_back(Vertex3D_UV{right, top, ZZZ, 1.0f, 1.0f});
-        vertices2D.push_back(Vertex3D_UV{left, top, ZZZ, 0.0f, 1.0f});
+        // bottom
+        tilesVertices.push_back(Vertex3D_UV{left, top, ZZZ, ul, vl});
+        tilesVertices.push_back(Vertex3D_UV{left, bottom, ZZZ, ul, v});
+        tilesVertices.push_back(Vertex3D_UV{right, bottom, ZZZ, u, v});
 
         bindTexture(&Info);
 }

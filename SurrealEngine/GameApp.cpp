@@ -48,6 +48,7 @@ int GameApp::main(std::vector<std::string> args)
 	args.push_back("--url=DM-TempestDEMO.unr");
 #else
 	args.push_back("UnrealTournament");
+	args.push_back("--url=DM-Cube-Test-Rendering.unr");
 #endif
 
 	std::cout << "DisplayBackend::TryCreateSDL2()" << std::endl;	
