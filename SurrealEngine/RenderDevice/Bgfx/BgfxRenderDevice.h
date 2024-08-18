@@ -27,6 +27,8 @@ public:
 	void UpdateTextureRect(FTextureInfo& Info, int U, int V, int UL, int VL);
 
 private:
+		void renderTiles();
+		
         struct Vertex3D_UV
         {
             float x;

@@ -192,44 +192,48 @@ void BgfxRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)
         renderingStartDate = now_ms.time_since_epoch();
 }
 
+void BgfxRenderDevice::renderTiles()
+{
+        std::vector<bgfx::VertexBufferHandle> tileVertexBufferHandles;
+        for (std::size_t i = 0; i < tilesVertices.size(); i += tileLength)
+        {
+                const bgfx::Memory *memory = bgfx::copy(
+                    tilesVertices.data() + i,
+                    sizeof(Vertex3D_UV) * tileLength);
+
+                bgfx::VertexBufferHandle tileVertexBufferHandle2D = bgfx::createVertexBuffer(
+                    memory,
+                    Vertex3D_UV::ms_layout);
+                tileVertexBufferHandles.push_back(tileVertexBufferHandle2D);
+        }
+
+        for (int i = 0; i < tileVertexBufferHandles.size(); i++)
+        {
+                bgfx::VertexBufferHandle tileVertexBufferHandle = tileVertexBufferHandles[i];
+                bgfx::TextureHandle texture = tilesTextures[i];
+                bgfx::setVertexBuffer(0, tileVertexBufferHandle);
+                bgfx::setTexture(0, s_texture0, texture);
+
+                bgfx::setState(BGFX_STATE_DEFAULT & ~BGFX_STATE_DEPTH_TEST_MASK);
+
+                bgfx::submit(0, drawTileProgram);
+        }
+
+        bgfx::frame();
+
+        for (auto tileVertexBufferHandle : tileVertexBufferHandles)
+        {
+                bgfx::destroy(tileVertexBufferHandle);
+        }
+        tilesVertices.clear();
+        tilesTextures.clear();
+}
+
 void BgfxRenderDevice::Unlock(bool Blit)
 {
         if (Blit)
         {
-                std::vector<bgfx::VertexBufferHandle> tileVertexBufferHandles;
-                for (std::size_t i = 0; i < tilesVertices.size(); i += tileLength)
-                {
-                        const bgfx::Memory *memory = bgfx::copy(
-                            tilesVertices.data() + i,
-                            sizeof(Vertex3D_UV) * tileLength);
-
-                        bgfx::VertexBufferHandle tileVertexBufferHandle2D = bgfx::createVertexBuffer(
-                            memory,
-                            Vertex3D_UV::ms_layout);
-                        tileVertexBufferHandles.push_back(tileVertexBufferHandle2D);
-                }
-
-                for (int i = 0; i < tileVertexBufferHandles.size(); i++)
-                {
-                        bgfx::VertexBufferHandle tileVertexBufferHandle = tileVertexBufferHandles[i];
-                        bgfx::TextureHandle texture = tilesTextures[i];
-                        bgfx::setVertexBuffer(0, tileVertexBufferHandle);
-                        bgfx::setTexture(0, s_texture0, texture);
-
-                        bgfx::setState(BGFX_STATE_DEFAULT);
-
-                        bgfx::submit(0, drawTileProgram);
-                }
-
-                bgfx::frame();
-
-                for (auto tileVertexBufferHandle : tileVertexBufferHandles)
-                {
-                        bgfx::destroy(tileVertexBufferHandle);
-                }
-                tilesVertices.clear();
-                tilesTextures.clear();
-
+                renderTiles();
                 auto now = std::chrono::system_clock::now();
                 auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
                 std::chrono::milliseconds renderingEndDate = now_ms.time_since_epoch();
@@ -417,8 +421,6 @@ void BgfxRenderDevice::DrawTile(
         float ul = u + float(UL) / float(textureWidth);
         float vl = v + float(VL) / float(textureHeight);
 
-        float ZZZ = 0.0f;
-
         float left = -1.f + (X / float(framebufferWidth)) * 2.f;
         float top = 1.f - (Y / float(framebufferHeight)) * 2.f;
 
@@ -426,14 +428,14 @@ void BgfxRenderDevice::DrawTile(
         float bottom = 1.f - ((Y + YL) / float(framebufferHeight)) * 2.f;
 
         // top
-        tilesVertices.push_back(Vertex3D_UV{right, bottom, ZZZ, ul, vl});
-        tilesVertices.push_back(Vertex3D_UV{right, top, ZZZ, ul, v});
-        tilesVertices.push_back(Vertex3D_UV{left, top, ZZZ, u, v});
+        tilesVertices.push_back(Vertex3D_UV{right, bottom, Z, ul, vl});
+        tilesVertices.push_back(Vertex3D_UV{right, top, Z, ul, v});
+        tilesVertices.push_back(Vertex3D_UV{left, top, Z, u, v});
 
         // bottom
-        tilesVertices.push_back(Vertex3D_UV{left, top, ZZZ, u, v});
-        tilesVertices.push_back(Vertex3D_UV{left, bottom, ZZZ, u, vl});
-        tilesVertices.push_back(Vertex3D_UV{right, bottom, ZZZ, ul, vl});
+        tilesVertices.push_back(Vertex3D_UV{left, top, Z, u, v});
+        tilesVertices.push_back(Vertex3D_UV{left, bottom, Z, u, vl});
+        tilesVertices.push_back(Vertex3D_UV{right, bottom, Z, ul, vl});
 
         bindTexture(&Info);
 }
