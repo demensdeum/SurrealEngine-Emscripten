@@ -16,9 +16,9 @@ class AudioDevice
 public:
 	static std::unique_ptr<AudioDevice> Create(int frequency, int numVoices, int musicBufferCount, int musicBufferSize);
 
-#if __EMSCRIPTEN__
-	virtual void MusicThreadMain() = 0;
-#endif
+// #if __EMSCRIPTEN__
+// 	virtual void MusicThreadMain() = 0;
+// #endif
 
 	virtual ~AudioDevice() = default;
 	virtual void AddSound(USound* sound) = 0;

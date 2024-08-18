@@ -68,7 +68,7 @@ GameLaunchInfo GameFolderSelection::GetLaunchInfo()
 	info.gameRootFolder = "UnrealTournament";		// Path to the folder that contains all the subfolders and files
 	info.gameExecutableName = "UnrealTournament";	// Name of the game executable (e.g. "UnrealTournament")
 	info.gameVersionString = "227j";		// Version (+ sub version) info as a string (e.g. "469d")
-	info.url = "UnrealTournament";	
+	info.url = commandline->GetArg("-u", "--url", info.url);
 #else
 	GameLaunchInfo info = foundGames[selectedGame];
 

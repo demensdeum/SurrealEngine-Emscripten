@@ -503,6 +503,7 @@ set(SURREALENGINE_SOURCES
 )
 
 if(EMSCRIPTEN)
+include_directories("/home/demensdeum_stream/Sources/bgfx-build/bgfx/include")
 add_compile_definitions(NO_SSE)
 set(CMAKE_CXX_FLAGS "-s MIN_WEBGL_VERSION=2 \
 -s MAX_WEBGL_VERSION=2 \
@@ -510,6 +511,8 @@ set(CMAKE_CXX_FLAGS "-s MIN_WEBGL_VERSION=2 \
 -fexceptions \
 --preload-file UnrealTournament/ \
 --preload-file SurrealEngine.pk3 \
+--preload-file BgfxRenderDeviceDrawTileVertex.glsl \
+--preload-file BgfxRenderDeviceDrawTileFragment.glsl \
 --bind \
 --use-preload-plugins \
 -Wall \
@@ -612,7 +615,11 @@ target_precompile_headers(SurrealCommon PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${CMAK
 
 add_executable(SurrealEngine WIN32 MACOSX_BUNDLE ${SURREALENGINE_SOURCES})
 
+if(EMSCRIPTEN)
+target_link_libraries(SurrealEngine SurrealCommon GL GLEW /home/demensdeum_stream/Sources/bgfx-build/bgfx/.build/wasm/bin/bgfxDebug.bc /home/demensdeum_stream/Sources/bgfx-build/bgfx/.build/wasm/bin/bxDebug.bc /home/demensdeum_stream/Sources/bgfx-build/bgfx/.build/wasm/bin/bimgDebug.bc ${SURREALCOMMON_LIBS})
+else()
 target_link_libraries(SurrealEngine SurrealCommon GL GLEW bgfx ${SURREALCOMMON_LIBS})
+endif()
 set_target_properties(SurrealEngine PROPERTIES CXX_STANDARD 17)
 
 if(WIN32)

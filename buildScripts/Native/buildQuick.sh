@@ -1,3 +1,3 @@
 clear
-../buildScripts/Native/buildShaders.sh
-cmake .. && make -j 16 
+../buildScripts/shared/buildShaders.sh
+cmake .. && make -j 8 

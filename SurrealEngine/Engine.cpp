@@ -94,10 +94,26 @@ void Engine::Run()
 		if (!LaunchInfo.noEntryMap)
 			LoadEntryMap();
 
-		if (LaunchInfo.url.empty())
+		if (LaunchInfo.url.empty()) {
+			std::cout << "LoadMap1" << std::endl;
 			LoadMap(GetDefaultURL(packages->GetIniValue("system", "URL", "LocalMap")));
-		else
-			LoadMap(UnrealURL(GetDefaultURL(packages->GetIniValue("system", "URL", "LocalMap")), LaunchInfo.url));
+		}
+		else {
+			std::cout << "LoadMap2" << std::endl;
+			std::string launchInfoUrl = LaunchInfo.url;
+			std::string mapDebug = packages->GetIniValue("system", "URL", "LocalMap");
+
+			std::cout << "launchInfoUrl: " << launchInfoUrl << std::endl;
+			std::cout << "mapDebug: " << mapDebug << std::endl;
+
+			UnrealURL url = UnrealURL(
+					GetDefaultURL(
+						mapDebug
+					), launchInfoUrl
+			);
+
+			LoadMap(url);
+		}
 
 		LoginPlayer();
 
@@ -112,14 +128,14 @@ void Engine::Run()
 #endif
 	{
 
-#if __EMSCRIPTEN__
-	if (AudioSubsystem::Device.get()) {
-		AudioSubsystem::Device.get()->MusicThreadMain();
-	}
-	else {
-		std::cout << "AudioSubsystem::Device is null" << std::endl;
-	}
-#endif
+// #if __EMSCRIPTEN__
+// 	if (AudioSubsystem::Device.get()) {
+// 		AudioSubsystem::Device.get()->MusicThreadMain();
+// 	}
+// 	else {
+// 		std::cout << "AudioSubsystem::Device is null" << std::endl;
+// 	}
+// #endif
 
 		float realTimeElapsed = CalcTimeElapsed();
 		float entryLevelElapsed = EntryLevel ? clamp(realTimeElapsed * EntryLevelInfo->TimeDilation(), 1.0f / 400.0f, 1.0f / 2.5f) : 0.0f;
@@ -151,6 +167,7 @@ void Engine::Run()
 			{
 				if (LevelInfo->NextURL() == "?RESTART")
 				{
+					std::cout << "LoadMap3" << std::endl;
 					LoadMap(LevelInfo->URL, Level->TravelInfo);
 					LoginPlayer();
 				}
@@ -172,11 +189,13 @@ void Engine::Run()
 							travelInfo[playerName] = ObjectTravelInfo::ToString(actorTravelInfo);
 						}
 					}
+					std::cout << "LoadMap4" << std::endl;
 					LoadMap(UnrealURL(LevelInfo->URL, LevelInfo->NextURL()), travelInfo);
 					LoginPlayer();
 				}
 				else
 				{
+					std::cout << "LoadMap5" << std::endl;
 					LoadMap(UnrealURL(LevelInfo->URL, LevelInfo->NextURL()), {});
 					LoginPlayer();
 				}
@@ -209,6 +228,7 @@ void Engine::Run()
 			}
 
 			LogMessage("Client travel to " + url.ToString());
+			std::cout << "LoadMap6" << std::endl;
 			LoadMap(url, travelInfo);
 			LoginPlayer();
 		}
@@ -304,6 +324,7 @@ UnrealURL Engine::GetDefaultURL(const std::string& map)
 void Engine::LoadEntryMap()
 {
 	// The entry map is the map you see in the game when no other map is playing. For example when disconnected from a server. It is always loaded and running.
+	std::cout << "LoadMap7" << std::endl;
 	LoadMap(GetDefaultURL("Entry"));
 	EntryLevelInfo = LevelInfo;
 	EntryLevel = Level;
@@ -328,6 +349,7 @@ void Engine::UnloadMap()
 
 void Engine::LoadMap(const UnrealURL& url, const std::map<std::string, std::string>& travelInfo)
 {
+	std::cout << "LoadMap: " << url.ToString() << std::endl;
 	ClientTravelInfo.URL.Map.clear();
 
 	if (Level)
@@ -347,7 +369,7 @@ void Engine::LoadMap(const UnrealURL& url, const std::map<std::string, std::stri
 		LevelPackage = packages->GetPackageFromPath(url.Map);
 	}
 	else {
-		std::cout << "GP2" << std::endl;
+		std::cout << "GP2: " << FilePath::remove_extension(url.Map) << std::endl;
 		LevelPackage = packages->GetPackage(FilePath::remove_extension(url.Map), 998);
 	}
 
@@ -761,6 +783,7 @@ std::string Engine::ConsoleCommand(UObject* context, const std::string& commandl
 			if (strcasecmp(mapname.c_str(), url.Map.c_str()) == 0)
 #endif
 			{
+				std::cout << "LoadMap8" << std::endl;
 				LoadMap(url);
 				LoginPlayer();
 			}	

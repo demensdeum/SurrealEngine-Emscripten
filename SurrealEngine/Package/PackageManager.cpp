@@ -63,6 +63,12 @@ Package* PackageManager::GetPackage(const NameString& name, int debugIndex)
 	if (package)
 		return package.get();
 
+	std::cout << "GetPackage ->" << std::endl;
+	for (auto key : packageFilenames) {
+		std::cout << "Package: " << key.first.ToString() << std::endl;
+	}
+	std::cout << "<- GetPackage" << std::endl;
+
 	auto it = packageFilenames.find(name);
 	if (it != packageFilenames.end())
 	{

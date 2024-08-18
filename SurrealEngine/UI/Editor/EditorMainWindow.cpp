@@ -97,6 +97,7 @@ void EditorMainWindow::OnFileOpen()
 		auto mapFile = FilePath::last_component(openFileDialog->Filename());
 		auto mapName = FilePath::remove_extension(mapFile);
 
+		std::cout << "LoadMap10" << std::endl;
 		LoadMap(mapName);
 
 		this->SetWindowTitle("Surreal Editor: " + engine->LaunchInfo.gameName + " v" + engine->LaunchInfo.gameVersionString + " - " + mapFile);
@@ -184,7 +185,7 @@ void EditorMainWindow::OnHelpAbout()
 
 void EditorMainWindow::LoadMap(std::string& mapName)
 {
-std::cout << "GP21" << std::endl;	
+	std::cout << "GP21" << std::endl;	
 	engine->LevelPackage = engine->packages->GetPackage(FilePath::remove_extension(mapName), 970);
 	engine->LevelInfo = UObject::Cast<ULevelInfo>(engine->LevelPackage->GetUObject("LevelInfo", "LevelInfo0"));
 	engine->Level = UObject::Cast<ULevel>(engine->LevelPackage->GetUObject("Level", "MyLevel"));

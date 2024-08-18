@@ -11,7 +11,11 @@
 #define BGFX_MODE_OPENGL 1
 #define BGFX_MODE_VULKAN 2
 
+#if __EMSCRIPTEN__
 #define BGFX_MODE BGFX_MODE_OPENGL
+#else
+#define BGFX_MODE BGFX_MODE_OPENGL
+#endif
 
 bgfx::VertexLayout BgfxRenderDevice::Vertex3D_UV::ms_layout;
 
@@ -88,6 +92,12 @@ BgfxRenderDevice::BgfxRenderDevice(GameWindow *InWindow)
                 throw std::runtime_error(std::string("Can't get SDL2Window::currentWindow"));
         }
 
+        bgfx::PlatformData platformData{};
+
+#if __EMSCRIPTEN__
+        platformData.ndt = NULL;
+        platformData.nwh = (void*)"#canvas";
+#else
         SDL_SysWMinfo wmi;
         SDL_VERSION(&wmi.version);
         if (!SDL_GetWindowWMInfo(window, &wmi))
@@ -95,19 +105,19 @@ BgfxRenderDevice::BgfxRenderDevice(GameWindow *InWindow)
                 throw std::runtime_error(std::string("Can't get wmi"));
         }
 
-        bgfx::PlatformData platformData{};
 #if BX_PLATFORM_LINUX || BX_PLATFORM_BSD
         platformData.ndt = wmi.info.x11.display;
         platformData.nwh = (void *)(uintptr_t)wmi.info.x11.window;
 #elif BX_PLATFORM_OSX
-        pd.ndt = NULL;
-        pd.nwh = wmi.info.cocoa.window;
+        platformData.ndt = NULL;
+        platformData.nwh = wmi.info.cocoa.window;
 #elif BX_PLATFORM_WINDOWS
-        pd.ndt = NULL;
-        pd.nwh = wmi.info.win.window;
+        platformData.ndt = NULL;
+        platformData.nwh = wmi.info.win.window;
 #elif BX_PLATFORM_STEAMLINK
-        pd.ndt = wmi.info.vivante.display;
-        pd.nwh = wmi.info.vivante.window;
+        platformData.ndt = wmi.info.vivante.display;
+        platformData.nwh = wmi.info.vivante.window;
+#endif        
 #endif
         platformData.context = NULL;
         platformData.backBuffer = NULL;
@@ -139,7 +149,6 @@ BgfxRenderDevice::BgfxRenderDevice(GameWindow *InWindow)
 #elif BGFX_MODE == BGFX_MODE_VULKAN
         drawTileVertexShaderCode = readFile("BgfxRenderDeviceDrawTileVertex.spirv");
 #endif
-
         bgfx::ShaderHandle vertexShader = bgfx::createShader(bgfx::makeRef(drawTileVertexShaderCode.data(), drawTileVertexShaderCode.size()));
         if (!bgfx::isValid(vertexShader))
         {

@@ -44,7 +44,7 @@ int GameApp::main(std::vector<std::string> args)
 
 
 #if __EMSCRIPTEN__
-	args.push_back("DEMO_UnrealTournament");
+	args.push_back("UnrealTournament");
 	args.push_back("--url=DM-TempestDEMO.unr");
 #else
 	args.push_back("UnrealTournament");
