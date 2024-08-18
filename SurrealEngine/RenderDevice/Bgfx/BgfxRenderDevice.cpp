@@ -19,8 +19,6 @@ const int framebufferWidth = 1920;
 const int framebufferHeight = 1080;
 const int tileLength = 6;
 
-int tileCount = 0;
-
 std::map<uint64_t, bgfx::TextureHandle> texturesCache;
 
 std::vector<char> readFile(const std::string &filename)
@@ -231,7 +229,6 @@ void BgfxRenderDevice::Unlock(bool Blit)
                 }
                 tilesVertices.clear();
                 tilesTextures.clear();
-                tileCount = 0;
 
                 auto now = std::chrono::system_clock::now();
                 auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
@@ -382,6 +379,7 @@ void BgfxRenderDevice::bindTexture(FTextureInfo *texture)
                     0,
                     mem);
 
+                SDL_SaveBMP(surface, "unreal_texture.bmp");
                 SDL_FreeSurface(surface);
 
                 texturesCache[texture->CacheID] = textureHandle;
@@ -413,28 +411,29 @@ void BgfxRenderDevice::DrawTile(
         int textureWidth = Info.Mips[0].Width;
         int textureHeight = Info.Mips[0].Height;
 
-        float u = U / textureWidth;
-        float v = V / textureHeight;
-        float ul = UL / textureWidth;
-        float vl = VL / textureHeight;
+        float u = float(U) / float(textureWidth);
+        float v = float(V) / float(textureHeight);
+
+        float ul = u + float(UL) / float(textureWidth);
+        float vl = v + float(VL) / float(textureHeight);
 
         float ZZZ = 0.0f;
 
-        float left = (XL / float(framebufferWidth)) * 2.f - 1.f;
-        float right = (X / float(framebufferWidth)) * 2.f - 1.f;
+        float left = -1.f + (X / float(framebufferWidth)) * 2.f;
+        float top = 1.f - (Y / float(framebufferHeight)) * 2.f;
 
-        float top = (YL / float(framebufferHeight)) * 2.f - 1.f;
-        float bottom = (Y / float(framebufferHeight)) * 2.f - 1.f;
+        float right = -1.f + ((X + XL) / float(framebufferWidth)) * 2.f;
+        float bottom = 1.f - ((Y + YL) / float(framebufferHeight)) * 2.f;
 
         // top
-        tilesVertices.push_back(Vertex3D_UV{right, bottom, ZZZ, u, v});
-        tilesVertices.push_back(Vertex3D_UV{right, top, ZZZ, u, vl});
-        tilesVertices.push_back(Vertex3D_UV{left, top, ZZZ, ul, vl});
+        tilesVertices.push_back(Vertex3D_UV{right, bottom, ZZZ, ul, vl});
+        tilesVertices.push_back(Vertex3D_UV{right, top, ZZZ, ul, v});
+        tilesVertices.push_back(Vertex3D_UV{left, top, ZZZ, u, v});
 
         // bottom
-        tilesVertices.push_back(Vertex3D_UV{left, top, ZZZ, ul, vl});
-        tilesVertices.push_back(Vertex3D_UV{left, bottom, ZZZ, ul, v});
-        tilesVertices.push_back(Vertex3D_UV{right, bottom, ZZZ, u, v});
+        tilesVertices.push_back(Vertex3D_UV{left, top, ZZZ, u, v});
+        tilesVertices.push_back(Vertex3D_UV{left, bottom, ZZZ, u, vl});
+        tilesVertices.push_back(Vertex3D_UV{right, bottom, ZZZ, ul, vl});
 
         bindTexture(&Info);
 }
