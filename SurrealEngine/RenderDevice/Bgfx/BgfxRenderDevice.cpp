@@ -144,6 +144,13 @@ BgfxRenderDevice::BgfxRenderDevice(GameWindow *InWindow)
         bgfx::setViewClear(0, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0x443355FF, 1.0f, 0);
         bgfx::setViewRect(0, 0, 0, framebufferWidth, framebufferHeight);
 
+        initializeDrawTileRoutine();
+        initializeDraw3DRoutine();
+
+        s_texture0 = bgfx::createUniform("s_texture0", bgfx::UniformType::Sampler);
+}
+
+void BgfxRenderDevice::initializeDrawTileRoutine() {
 #if BGFX_MODE == BGFX_MODE_OPENGL
         drawTileVertexShaderCode = readFile("BgfxRenderDeviceDrawTileVertex.glsl");
 #elif BGFX_MODE == BGFX_MODE_VULKAN
@@ -181,7 +188,46 @@ BgfxRenderDevice::BgfxRenderDevice(GameWindow *InWindow)
         {
                 throw std::runtime_error("Failed to create program");
         }
-        s_texture0 = bgfx::createUniform("s_texture0", bgfx::UniformType::Sampler);
+}
+
+void BgfxRenderDevice::initializeDraw3DRoutine() {
+#if BGFX_MODE == BGFX_MODE_OPENGL
+        draw3DVertexShaderCode = readFile("BgfxRenderDeviceDraw3DVertex.glsl");
+#elif BGFX_MODE == BGFX_MODE_VULKAN
+        drawComplexSurfaceVertexShaderCode = readFile("BgfxRenderDeviceDraw3DVertex.spirv");
+#endif
+        bgfx::ShaderHandle vertexShader = bgfx::createShader(bgfx::makeRef(draw3DVertexShaderCode.data(), draw3DVertexShaderCode.size()));
+        if (!bgfx::isValid(vertexShader))
+        {
+                throw std::runtime_error("Failed to create vertex shader");
+        }
+        else
+        {
+                std::cout << "Vertex shader load success!" << std::endl;
+        }
+
+#if BGFX_MODE == BGFX_MODE_OPENGL
+        draw3DFragmentShaderCode = readFile("BgfxRenderDeviceDraw3DFragment.glsl");
+#elif BGFX_MODE == BGFX_MODE_VULKAN
+        drawComplexSurfaceFragmentShaderCode = readFile("BgfxRenderDeviceDraw3DFragment.spirv");
+#endif
+
+        bgfx::ShaderHandle fragmentShader = bgfx::createShader(bgfx::makeRef(draw3DFragmentShaderCode.data(), draw3DFragmentShaderCode.size()));
+        if (!bgfx::isValid(fragmentShader))
+        {
+                throw std::runtime_error("Failed to create fragment shader");
+        }
+        else
+        {
+                std::cout << "Fragment shader load success!" << std::endl;
+        }
+
+        draw3DProgram = bgfx::createProgram(vertexShader, fragmentShader, true);
+
+        if (!bgfx::isValid(draw3DProgram))
+        {
+                throw std::runtime_error("Failed to create program");
+        }
 }
 
 BgfxRenderDevice::~BgfxRenderDevice()
@@ -199,6 +245,11 @@ void BgfxRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)
         auto now = std::chrono::system_clock::now();
         auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
         renderingStartDate = now_ms.time_since_epoch();
+}
+
+void BgfxRenderDevice::renderComplexSurfaces()
+{
+               
 }
 
 void BgfxRenderDevice::renderTiles()
@@ -243,6 +294,7 @@ void BgfxRenderDevice::Unlock(bool Blit)
         if (Blit)
         {
                 renderTiles();
+                renderComplexSurfaces();
                 auto now = std::chrono::system_clock::now();
                 auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
                 std::chrono::milliseconds renderingEndDate = now_ms.time_since_epoch();
@@ -257,6 +309,7 @@ void BgfxRenderDevice::Unlock(bool Blit)
 
 void BgfxRenderDevice::DrawComplexSurface(FSceneNode *Frame, FSurfaceInfo &Surface, FSurfaceFacet &Facet)
 {
+        
 }
 
 void BgfxRenderDevice::DrawGouraudPolygon(FSceneNode *Frame, FTextureInfo &Info, const GouraudVertex *Pts, int NumPts, uint32_t PolyFlags)

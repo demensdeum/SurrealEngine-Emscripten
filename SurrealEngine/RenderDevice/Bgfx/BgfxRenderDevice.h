@@ -26,9 +26,7 @@ public:
 	bool SupportsTextureFormat(TextureFormat Format);
 	void UpdateTextureRect(FTextureInfo& Info, int U, int V, int UL, int VL);
 
-private:
-		void renderTiles();
-		
+private:		
         struct Vertex3D_UV
         {
             float x;
@@ -51,14 +49,26 @@ private:
 
 	void bindTexture(FTextureInfo *texture);
 
-	bgfx::ProgramHandle drawTileProgram;
+	std::chrono::milliseconds renderingStartDate;
 	bgfx::UniformHandle s_texture0;
 
+	bgfx::ProgramHandle drawTileProgram;
 	std::vector<char> drawTileVertexShaderCode;
 	std::vector<char> drawTileFragmentShaderCode;
-
-	std::chrono::milliseconds renderingStartDate;
-
 	std::vector<Vertex3D_UV> tilesVertices;
 	std::vector<bgfx::TextureHandle> tilesTextures;
+
+	void initializeDrawTileRoutine();
+
+	bgfx::ProgramHandle draw3DProgram;
+	std::vector<char> draw3DVertexShaderCode;
+	std::vector<char> draw3DFragmentShaderCode;
+
+	void initializeDraw3DRoutine();
+
+	std::vector<Vertex3D_UV> compexSurfaceVertices;
+	std::vector<bgfx::TextureHandle> complexSurfaceTextures;	
+
+	void renderTiles();
+	void renderComplexSurfaces();
 };
