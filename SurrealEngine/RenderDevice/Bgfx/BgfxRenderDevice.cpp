@@ -148,6 +148,7 @@ BgfxRenderDevice::BgfxRenderDevice(GameWindow *InWindow)
         initializeDraw3DRoutine();
 
         s_texture0 = bgfx::createUniform("s_texture0", bgfx::UniformType::Sampler);
+        objectToProjectionUniform  = bgfx::createUniform("objectToProjectionMatrix",  bgfx::UniformType::Mat4);
 }
 
 void BgfxRenderDevice::initializeDrawTileRoutine() {
@@ -283,11 +284,11 @@ void BgfxRenderDevice::renderTiles(std::vector<bgfx::VertexBufferHandle> *vertex
 }
 
 void BgfxRenderDevice::renderComplexSurfaces(std::vector<bgfx::VertexBufferHandle> *vertexBufferHandles) {
-        for (std::size_t i = 0; i < complexSurfacesVertices.size(); i += tileLength)
+        for (std::size_t i = 0; i < complexSurfacesVertices.size(); i += 3)
         {
                 const bgfx::Memory *memory = bgfx::copy(
                     complexSurfacesVertices.data() + i,
-                    sizeof(Vertex3D_UV) * tileLength);
+                    sizeof(Vertex3D_UV) * 3);
 
                 bgfx::VertexBufferHandle vertexBufferHandle2D = bgfx::createVertexBuffer(
                     memory,
@@ -297,12 +298,12 @@ void BgfxRenderDevice::renderComplexSurfaces(std::vector<bgfx::VertexBufferHandl
 
         for (int i = 0; i < vertexBufferHandles->size(); i++)
         {
+                std::cout << "i: " << i << "; vertexBufferHandles->size(): " << vertexBufferHandles->size() << std::endl;
                 bgfx::VertexBufferHandle vertexBufferHandle = vertexBufferHandles->at(i);
                 bgfx::TextureHandle texture = complexSurfacesTextures[i];
                 bgfx::setVertexBuffer(0, vertexBufferHandle);
                 bgfx::setTexture(0, s_texture0, texture);
-
-                //bgfx::setState(BGFX_STATE_DEFAULT & ~BGFX_STATE_DEPTH_TEST_MASK);
+                bgfx::setUniform(objectToProjectionUniform, &objectToProjection, 1);
 
                 bgfx::submit(0, draw3DProgram);
         }
@@ -313,8 +314,9 @@ void BgfxRenderDevice::Unlock(bool Blit)
         if (Blit)
         {
                 std::vector<bgfx::VertexBufferHandle> tilesVertexBufferHandles;
-                std::vector<bgfx::VertexBufferHandle> complexSurfacesVertexBufferHandles;
                 renderTiles(&tilesVertexBufferHandles);
+
+                std::vector<bgfx::VertexBufferHandle> complexSurfacesVertexBufferHandles;                
                 renderComplexSurfaces(&complexSurfacesVertexBufferHandles);
 
                 bgfx::frame();
@@ -598,6 +600,13 @@ void BgfxRenderDevice::EndFlash()
 
 void BgfxRenderDevice::SetSceneNode(FSceneNode *Frame)
 {
+        float Aspect = Frame->FY / Frame->FX;
+        float RProjZ = (float)std::tan(radians(Frame->FovAngle) * 0.5);
+
+        // glViewport((float)Frame->XB, (float)Frame->YB, (float)Frame->X, (float)Frame->Y); // eh?
+
+        objectToProjection = mat4::frustum(-RProjZ, RProjZ, -Aspect * RProjZ, Aspect * RProjZ, 1.0f, 32768.0f, handedness::left, clipzrange::zero_positive_w);
+        objectToProjection = objectToProjection * Frame->WorldToView * Frame->ObjectToWorld;        
 }
 
 void BgfxRenderDevice::PrecacheTexture(FTextureInfo &Info, uint32_t PolyFlags)
