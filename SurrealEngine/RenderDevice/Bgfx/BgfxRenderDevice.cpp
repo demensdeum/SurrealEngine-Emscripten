@@ -247,12 +247,7 @@ void BgfxRenderDevice::Lock(vec4 FlashScale, vec4 FlashFog, vec4 ScreenClear)
         renderingStartDate = now_ms.time_since_epoch();
 }
 
-void BgfxRenderDevice::renderComplexSurfaces()
-{
-               
-}
-
-void BgfxRenderDevice::renderTiles()
+void BgfxRenderDevice::renderTiles(std::vector<bgfx::VertexBufferHandle> *vertexBufferHandles)
 {
         std::vector<bgfx::VertexBufferHandle> tileVertexBufferHandles;
         for (std::size_t i = 0; i < tilesVertices.size(); i += tileLength)
@@ -279,8 +274,6 @@ void BgfxRenderDevice::renderTiles()
                 bgfx::submit(0, drawTileProgram);
         }
 
-        bgfx::frame();
-
         for (auto tileVertexBufferHandle : tileVertexBufferHandles)
         {
                 bgfx::destroy(tileVertexBufferHandle);
@@ -289,12 +282,58 @@ void BgfxRenderDevice::renderTiles()
         tilesTextures.clear();
 }
 
+void BgfxRenderDevice::renderComplexSurfaces(std::vector<bgfx::VertexBufferHandle> *vertexBufferHandles) {
+        for (std::size_t i = 0; i < complexSurfacesVertices.size(); i += tileLength)
+        {
+                const bgfx::Memory *memory = bgfx::copy(
+                    complexSurfacesVertices.data() + i,
+                    sizeof(Vertex3D_UV) * tileLength);
+
+                bgfx::VertexBufferHandle vertexBufferHandle2D = bgfx::createVertexBuffer(
+                    memory,
+                    Vertex3D_UV::ms_layout);
+                vertexBufferHandles->push_back(vertexBufferHandle2D);
+        }
+
+        for (int i = 0; i < vertexBufferHandles->size(); i++)
+        {
+                bgfx::VertexBufferHandle vertexBufferHandle = vertexBufferHandles->at(i);
+                bgfx::TextureHandle texture = complexSurfacesTextures[i];
+                bgfx::setVertexBuffer(0, vertexBufferHandle);
+                bgfx::setTexture(0, s_texture0, texture);
+
+                //bgfx::setState(BGFX_STATE_DEFAULT & ~BGFX_STATE_DEPTH_TEST_MASK);
+
+                bgfx::submit(0, draw3DProgram);
+        }
+}
+
 void BgfxRenderDevice::Unlock(bool Blit)
 {
         if (Blit)
         {
-                renderTiles();
-                renderComplexSurfaces();
+                std::vector<bgfx::VertexBufferHandle> tilesVertexBufferHandles;
+                std::vector<bgfx::VertexBufferHandle> complexSurfacesVertexBufferHandles;
+                renderTiles(&tilesVertexBufferHandles);
+                renderComplexSurfaces(&complexSurfacesVertexBufferHandles);
+
+                bgfx::frame();
+
+                for (auto tileVertexBufferHandle : tilesVertexBufferHandles)
+                {
+                        bgfx::destroy(tileVertexBufferHandle);
+                }
+                
+                tilesVertexBufferHandles.clear();
+                tilesTextures.clear();
+
+                for (auto complexSurfaceBufferHandle : complexSurfacesVertexBufferHandles)
+                {
+                        bgfx::destroy(complexSurfaceBufferHandle);
+                }
+                complexSurfacesVertices.clear();
+                complexSurfacesTextures.clear();
+
                 auto now = std::chrono::system_clock::now();
                 auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
                 std::chrono::milliseconds renderingEndDate = now_ms.time_since_epoch();
@@ -307,9 +346,40 @@ void BgfxRenderDevice::Unlock(bool Blit)
         }
 }
 
+inline float GetUMult(const FTextureInfo& Info) { return 1.0f / (Info.UScale * Info.USize); }
+inline float GetVMult(const FTextureInfo& Info) { return 1.0f / (Info.VScale * Info.VSize); }
+
 void BgfxRenderDevice::DrawComplexSurface(FSceneNode *Frame, FSurfaceInfo &Surface, FSurfaceFacet &Facet)
 {
-        
+	auto pts = Facet.Vertices;
+	uint32_t vcount = Facet.VertexCount;
+
+	float UDot = dot(Facet.MapCoords.XAxis, Facet.MapCoords.Origin);
+	float VDot = dot(Facet.MapCoords.YAxis, Facet.MapCoords.Origin);
+
+	float UPan = UDot + Surface.Texture->Pan.x;
+	float VPan = VDot + Surface.Texture->Pan.y;
+	float UMult = GetUMult(*Surface.Texture);
+	float VMult = GetVMult(*Surface.Texture);
+
+	for (uint32_t i = 0; i < vcount-3; i++) {
+                for (uint32_t j = 0; j < 3; j++) {
+                        int index = j == 0 ? 0 : i + j;
+                        vec3 point = pts[index];
+                        float u = dot(Facet.MapCoords.XAxis, point);
+                        float v = dot(Facet.MapCoords.YAxis, point);
+
+                        Vertex3D_UV vertex;
+                        vertex.x = point.x;
+                        vertex.y = point.y;
+                        vertex.z = point.z;
+                        vertex.u = (u - UPan) * UMult;
+                        vertex.v = (v - VPan) * VMult;
+
+                        complexSurfacesVertices.push_back(vertex);
+                        bindTexture(Surface.Texture, &complexSurfacesTextures);
+                }
+        }
 }
 
 void BgfxRenderDevice::DrawGouraudPolygon(FSceneNode *Frame, FTextureInfo &Info, const GouraudVertex *Pts, int NumPts, uint32_t PolyFlags)
@@ -401,7 +471,7 @@ void generateMipMap(FTextureInfo *Texture, SDL_Surface *surface)
         }
 }
 
-void BgfxRenderDevice::bindTexture(FTextureInfo *texture)
+void BgfxRenderDevice::bindTexture(FTextureInfo *texture, std::vector<bgfx::TextureHandle> *textures)
 {
         bgfx::TextureHandle textureBinding;
 
@@ -456,7 +526,7 @@ void BgfxRenderDevice::bindTexture(FTextureInfo *texture)
                 textureBinding = texturesCache[texture->CacheID];
         }
 
-        tilesTextures.push_back(textureBinding);
+        textures->push_back(textureBinding);
 }
 
 void BgfxRenderDevice::DrawTile(
@@ -499,7 +569,7 @@ void BgfxRenderDevice::DrawTile(
         tilesVertices.push_back(Vertex3D_UV{left, bottom, Z, u, vl});
         tilesVertices.push_back(Vertex3D_UV{right, bottom, Z, ul, vl});
 
-        bindTexture(&Info);
+        bindTexture(&Info, &tilesTextures);
 }
 
 void BgfxRenderDevice::Draw3DLine(FSceneNode *Frame, vec4 Color, vec3 P1, vec3 P2)

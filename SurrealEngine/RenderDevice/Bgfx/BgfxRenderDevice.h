@@ -47,7 +47,7 @@ private:
             static bgfx::VertexLayout ms_layout;
         };
 
-	void bindTexture(FTextureInfo *texture);
+	void bindTexture(FTextureInfo *texture, std::vector<bgfx::TextureHandle> *textures);
 
 	std::chrono::milliseconds renderingStartDate;
 	bgfx::UniformHandle s_texture0;
@@ -66,9 +66,9 @@ private:
 
 	void initializeDraw3DRoutine();
 
-	std::vector<Vertex3D_UV> compexSurfaceVertices;
-	std::vector<bgfx::TextureHandle> complexSurfaceTextures;	
+	std::vector<Vertex3D_UV> complexSurfacesVertices;
+	std::vector<bgfx::TextureHandle> complexSurfacesTextures;	
 
-	void renderTiles();
-	void renderComplexSurfaces();
+	void renderTiles(std::vector<bgfx::VertexBufferHandle> *vertexBufferHandles);
+	void renderComplexSurfaces(std::vector<bgfx::VertexBufferHandle> *vertexBufferHandles);
 };
