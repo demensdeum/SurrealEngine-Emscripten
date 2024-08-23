@@ -118,9 +118,15 @@ SDL2Window::SDL2Window(GameWindowHost *windowHost) : windowHost(windowHost)
     rendDevice = RenderDevice::Create(this);
 #else
 
-    m_SDLWindow = SDL_CreateWindow("Surreal Engine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1920, 1080, SDL_WINDOW_VULKAN);
-
-    SDL2Window::currentWindow = m_SDLWindow;
+#if VULKAN_RENDER_ENABLED
+    m_SDLWindow = SDL_CreateWindow(
+        "Surreal Engine",
+        SDL_WINDOWPOS_CENTERED, 
+        SDL_WINDOWPOS_CENTERED,
+        1920,
+        1080,
+        SDL_WINDOW_VULKAN
+    );
 
     if (!m_SDLWindow) {
         SDLWindowError("Unable to create SDL Window: " + std::string(SDL_GetError()));
@@ -148,6 +154,18 @@ SDL2Window::SDL2Window(GameWindowHost *windowHost) : windowHost(windowHost)
 
     VulkanSurface *surface = new VulkanSurface(instance, surfaceHandle);
     VulkanRenderDevice::surface = surface;
+
+#else
+    m_SDLWindow = SDL_CreateWindow(
+        "Surreal Engine",
+        SDL_WINDOWPOS_CENTERED, 
+        SDL_WINDOWPOS_CENTERED,
+        1920,
+        1080,
+        SDL_WINDOW_OPENGL
+    );
+#endif
+    SDL2Window::currentWindow = m_SDLWindow;
     rendDevice = RenderDevice::Create(this);
 #endif
     windows[SDL_GetWindowID(m_SDLWindow)] = this;
